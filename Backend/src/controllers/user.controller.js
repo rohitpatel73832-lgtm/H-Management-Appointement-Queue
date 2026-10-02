@@ -3,7 +3,7 @@ import User from "../models/user.models.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import { ApiError } from "../utils/ApiError.js";
-
+import bcrypt from "bcrypt";
 
 // generating token
 const generateToken = (id) => {
@@ -59,5 +59,58 @@ const registerUser = asyncHandler(async (req, res) => {
     );
 });
 
+// login-user
+const loginUser = asyncHandler(async (req, res) => {
+    const { email, password } = req.body;
 
-export { registerUser };
+    if (!email || !password) {
+        throw new ApiError(
+            400,
+            "Email and password are required"
+        );
+    }
+    const user = await User.findOne({ email });
+
+    if (!user) {
+        throw new ApiError(404, "User does not exist");
+    }
+
+    const isPasswordCorrect = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordCorrect) {
+        throw new ApiError(401, "Invalid email or password");
+    }
+
+    const token = generateToken(user._id);
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                user,
+                token,
+            },
+            "User logged in successfully"
+        )
+    );
+}); 
+// get current user
+const getCurrentUser = asyncHandler(async (req, res) => {
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                user: req.user
+            },
+            "Current user fetched successfully"
+        )
+    );
+});
+
+
+export { registerUser,
+    loginUser,
+    getCurrentUser,
+
+ };
