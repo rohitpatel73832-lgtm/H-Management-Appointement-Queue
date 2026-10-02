@@ -95,6 +95,7 @@ const loginUser = asyncHandler(async (req, res) => {
     );
 }); 
 // get current user
+//test
 const getCurrentUser = asyncHandler(async (req, res) => {
 
     return res.status(200).json(
@@ -108,9 +109,55 @@ const getCurrentUser = asyncHandler(async (req, res) => {
     );
 });
 
+//test 
+
+const patientDashboard = asyncHandler(async (req, res) => {
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                user: req.user
+            },
+            "Welcome to patient dashboard"
+        )
+    );
+});
+
+//test
+const doctorDashboard = asyncHandler(async (req, res) => {
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                user: req.user
+            },
+            "Welcome to doctor dashboard"
+        )
+    );
+});
+
+//test
+const adminDashboard = asyncHandler(async (req, res) => {
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                user: req.user
+            },
+            "Welcome to admin dashboard"
+        )
+    );
+});
+
 
 export { registerUser,
     loginUser,
     getCurrentUser,
+    patientDashboard,
+    doctorDashboard,
+    adminDashboard,
 
  };

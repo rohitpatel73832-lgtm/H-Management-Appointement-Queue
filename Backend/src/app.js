@@ -1,6 +1,7 @@
 import express from "express"
 import cors from "cors"
 import userRouter from "./routes/user.routes.js"
+import { errorHandler } from "./utils/ErrorHandler.js"
 
 const app=express()
 
@@ -17,5 +18,10 @@ app.use(express.static("public"))
 
 //routing Api
 app.use('/api/users', userRouter);
+
+
+
+
+app.use(errorHandler);
 
 export default app;
