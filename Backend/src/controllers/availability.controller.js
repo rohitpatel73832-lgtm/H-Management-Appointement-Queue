@@ -67,6 +67,7 @@ const createAvailability = asyncHandler(async(req,res)=>{
     );
 })
 
+//get availability
 const getMyAvailability = asyncHandler(async (req, res) => {
 
     const doctor = await Doctor.findOne({
@@ -100,12 +101,8 @@ const updateAvailability = asyncHandler(async (req, res) => {
 
     const { availabilityId } = req.params;
 
-    const {
-        dayOfWeek,
-        startTime,
-        endTime
-    } = req.body;
-
+    const {dayOfWeek,startTime,endTime} = req.body;
+        
     if (!dayOfWeek || !startTime || !endTime) {
         throw new ApiError(
             400,
