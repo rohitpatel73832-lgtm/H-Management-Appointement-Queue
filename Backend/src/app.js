@@ -5,6 +5,7 @@ import { errorHandler } from "./utils/ErrorHandler.js"
 import doctorRouter from "./routes/doctor.routes.js"
 import availabilityRouter from "./routes/availability.routes.js"
 import slotRouter from "./routes/slot.routes.js"
+import appointmentRouter from "./routes/appointement.routes.js"
 
 const app=express()
 
@@ -30,6 +31,9 @@ app.use("/api/availability",availabilityRouter);
 
 //routing api for slot booked by patient 
 app.use("/api/slots",slotRouter);
+
+//routing api for patient booking their doctors slot
+app.use("/api/appointements",appointmentRouter);
 
 
 
