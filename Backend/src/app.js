@@ -3,6 +3,7 @@ import cors from "cors"
 import userRouter from "./routes/user.routes.js"
 import { errorHandler } from "./utils/ErrorHandler.js"
 import doctorRouter from "./routes/doctor.routes.js"
+import availabilityRouter from "./routes/availability.routes.js"
 
 const app=express()
 
@@ -22,6 +23,9 @@ app.use('/api/users', userRouter);
 
 //routing Api for doctor
 app.use("/api/doctors",doctorRouter);
+
+//routing Api for doctor (availability,deletion...)
+app.use("/api/availability",availabilityRouter);
 
 
 
