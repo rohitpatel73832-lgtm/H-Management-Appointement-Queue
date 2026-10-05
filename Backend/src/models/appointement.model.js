@@ -40,6 +40,27 @@ const appointmentSchema = new mongoose.Schema(
     }
 );
 
+
+// Prevent two booked appointments
+// for the same doctor and same time slot
+
+appointmentSchema.index(
+    {
+        doctor: 1,
+        date: 1,
+        startTime: 1,
+        endTime: 1
+    },
+    {
+        unique: true,
+
+        partialFilterExpression: {
+            status: "booked"
+        }
+    }
+);
+
+
 const Appointment = mongoose.model(
     "Appointment",
     appointmentSchema

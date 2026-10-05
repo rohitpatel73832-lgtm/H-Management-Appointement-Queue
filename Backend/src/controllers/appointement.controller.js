@@ -127,14 +127,34 @@ const createAppointment = asyncHandler(async (req, res) => {
 
     //  Create appointment
 
-    const appointment = await Appointment.create({
-        patient: req.userId,
-        doctor: doctorId,
-        date,
-        startTime,
-        endTime,
-        status: "booked"
-    });
+    let appointment;
+
+    try {
+
+        appointment = await Appointment.create({
+            patient: req.userId,
+            doctor: doctorId,
+            date,
+            startTime,
+            endTime,
+            status: "booked"
+        });
+
+    } catch (error) {
+
+        // MongoDB duplicate key error
+
+        if (error.code === 11000) {
+
+            throw new ApiError(
+                400,
+                "This slot is already booked"
+            );
+        }
+
+        throw error;
+    }
+
 
 
     // 9. Return response
