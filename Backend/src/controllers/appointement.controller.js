@@ -168,7 +168,34 @@ const createAppointment = asyncHandler(async (req, res) => {
     );
 });
 
+const getMyAppointments = asyncHandler(async (req, res) => {
+
+    const appointments = await Appointment.find({
+        patient: req.userId
+    })
+        .populate({
+            path: "doctor",
+            populate: {
+                path: "user",
+                select: "name email"
+            }
+        })
+        .sort({
+            date: 1,
+            startTime: 1
+        });
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            { appointments },
+            "Appointments fetched successfully"
+        )
+    );
+});
+
 
 export {
-    createAppointment
+    createAppointment,
+    getMyAppointments
 };

@@ -5,6 +5,8 @@ import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 
 import ProtectedRoute from "./components/ProtectedRoute";
+import DoctorDetails from "./pages/DoctorDetails";
+import MyAppointements from "./pages/MyAppointements";
 
 function App() {
 
@@ -33,6 +35,16 @@ function App() {
                         <Dashboard />
                     </ProtectedRoute>
                 }
+            />
+
+            <Route
+                path="/doctor/:doctorId"
+                element={<DoctorDetails />}
+            />
+
+            <Route
+                path="/my-appointements"
+                element={<MyAppointements />}
             />
 
         </Routes>
