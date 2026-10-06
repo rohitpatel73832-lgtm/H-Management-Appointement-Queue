@@ -49,6 +49,17 @@ const queueSchema = new mongoose.Schema(
     }
 );
 
+queueSchema.index(
+    {
+        doctor: 1,
+        date: 1,
+        tokenNumber: 1
+    },
+    {
+        unique: true
+    }
+);
+
 const Queue = mongoose.model(
     "Queue",
     queueSchema
