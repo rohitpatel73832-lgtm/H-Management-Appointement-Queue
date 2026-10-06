@@ -57,6 +57,102 @@ const getDoctorQueue= asyncHandler(async(req,res)=>{
 
 })
 
+const updateQueueStatus = asyncHandler(async(req,res)=>{
+    const { queueId } = req.params;
+    const { status } = req.body;
+
+    if (!status) {
+        throw new ApiError(
+            400,
+            "Status is required"
+        );
+    }
+
+    // Allowed statuses
+    const allowedStatuses = [
+        "waiting",
+        "called",
+        "serving",
+        "completed",
+        "skipped",
+        "cancelled"
+    ];
+
+     if (!allowedStatuses.includes(status)) {
+        throw new ApiError(
+            400,
+            "Invalid queue status"
+        );
+    }
+
+    // Find doctor using logged-in user
+    const doctor = await Doctor.findOne({
+        user: req.userId
+    });
 
 
-export { getDoctorQueue }
+    if (!doctor) {
+        throw new ApiError(
+            404,
+            "Doctor profile not found"
+        );
+    }
+
+    // Find queue
+    const queue = await Queue.findById(
+        queueId
+    );
+
+
+    if (!queue) {
+        throw new ApiError(
+            404,
+            "Queue not found"
+        );
+    }
+
+    // Make sure queue belongs to this doctor
+    if (
+        queue.doctor.toString() !==
+        doctor._id.toString()
+    ) {
+        throw new ApiError(
+            403,
+            "You are not authorized to update this queue"
+        );
+    }
+
+    // Update status
+    queue.status = status;
+
+    await queue.save();
+
+
+    return res
+        .status(200)
+        .json(
+
+            new ApiResponse(
+
+                200,
+
+                {
+                    queue
+                },
+
+                "Queue status updated successfully"
+
+            )
+
+        );
+
+})
+
+    
+
+
+
+export {
+    getDoctorQueue,
+    updateQueueStatus,
+}
