@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api.js";
+import socket from "../services/socket.js";
+
+
+
 
 function Dashboard(){
 
@@ -46,6 +50,40 @@ function Dashboard(){
         getCurrentUser();
 
     }, [navigate]);
+
+    // Socket.IO connection
+
+    useEffect(() => {
+
+        socket.on("connect", () => {
+
+            console.log(
+                "Socket connected:",
+                socket.id
+            );
+
+        });
+
+
+        socket.on("disconnect", () => {
+
+            console.log(
+                "Socket disconnected"
+            );
+
+        });
+
+
+        return () => {
+
+            socket.off("connect");
+            socket.off("disconnect");
+
+        };
+
+    }, []);
+
+    
 
     const handleLogout = () => {
 
