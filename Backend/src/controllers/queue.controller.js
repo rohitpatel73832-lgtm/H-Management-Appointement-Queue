@@ -155,6 +155,103 @@ const updateQueueStatus = asyncHandler(async(req,res)=>{
 
 })
 
+const getMyWaitingTime = asyncHandler(async (req, res) => {
+
+    const { date } = req.query;
+
+    const AVERAGE_SERVICE_TIME = 30;
+
+
+    // Check date
+
+    if (!date) {
+
+        throw new ApiError(
+            400,
+            "Date is required"
+        );
+
+    }
+
+
+    // Find patient's active queue
+
+    const myQueue = await Queue.findOne({
+
+        patient: req.userId,
+
+        date,
+
+        status: {
+            $in: [
+                "waiting",
+                "called",
+                "serving"
+            ]
+        }
+
+    });
+
+
+    if (!myQueue) {
+
+        throw new ApiError(
+            404,
+            "No active queue found for this date"
+        );
+
+    }
+
+
+    // Find active patients ahead
+
+    const patientsAhead =
+        await Queue.countDocuments({
+
+            doctor: myQueue.doctor,
+
+            date: myQueue.date,
+
+            tokenNumber: {
+                $lt: myQueue.tokenNumber
+            },
+
+            status: {
+                $in: [
+                    "waiting",
+                    "called",
+                    "serving"
+                ]
+            }
+
+        });
+
+
+    // Calculate estimated waiting time
+
+    const estimatedWaitingTime =
+        patientsAhead * AVERAGE_SERVICE_TIME;
+
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                {
+                    tokenNumber:
+                        myQueue.tokenNumber,
+
+                    patientsAhead,
+
+                    estimatedWaitingTime
+                },
+                "Waiting time calculated successfully"
+            )
+        );
+
+});
+
     
 
 
@@ -162,4 +259,5 @@ const updateQueueStatus = asyncHandler(async(req,res)=>{
 export {
     getDoctorQueue,
     updateQueueStatus,
+    getMyWaitingTime,
 }
