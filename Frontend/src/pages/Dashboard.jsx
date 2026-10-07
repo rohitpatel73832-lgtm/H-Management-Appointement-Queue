@@ -3,10 +3,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../services/api.js";
 import socket from "../services/socket.js";
 
-
-
-
-function Dashboard(){
+function Dashboard() {
 
     const navigate = useNavigate();
 
@@ -51,39 +48,105 @@ function Dashboard(){
 
     }, [navigate]);
 
-    // Socket.IO connection
 
+    // Socket.IO connection
     useEffect(() => {
 
-        socket.on("connect", () => {
-
-            console.log(
-                "Socket connected:",
-                socket.id
-            );
-
-        });
+    if (!user) {
+        return;
+    }
 
 
-        socket.on("disconnect", () => {
+    const handleConnect = () => {
 
-            console.log(
-                "Socket disconnected"
-            );
+        console.log(
+            "Socket connected:",
+            socket.id
+        );
 
-        });
+        socket.emit(
+            "join-patient",
+            user._id
+        );
+
+    };
 
 
-        return () => {
+    const handleQueueUpdate = (data) => {
 
-            socket.off("connect");
-            socket.off("disconnect");
+        console.log(
+            "QUEUE UPDATED:",
+            data
+        );
 
-        };
+    };
 
-    }, []);
 
-    
+    const handleDisconnect = () => {
+
+        console.log(
+            "Socket disconnected"
+        );
+
+    };
+
+
+    socket.on(
+        "connect",
+        handleConnect
+    );
+
+    socket.on(
+        "queue-updated",
+        handleQueueUpdate
+    );
+
+    socket.on(
+        "disconnect",
+        handleDisconnect
+    );
+
+
+    // IMPORTANT:
+    // If socket is already connected,
+    // join the room immediately.
+
+    if (socket.connected) {
+
+        console.log(
+            "Socket is already connected:",
+            socket.id
+        );
+
+        socket.emit(
+            "join-patient",
+            user._id
+        );
+
+    }
+
+
+    return () => {
+
+        socket.off(
+            "connect",
+            handleConnect
+        );
+
+        socket.off(
+            "queue-updated",
+            handleQueueUpdate
+        );
+
+        socket.off(
+            "disconnect",
+            handleDisconnect
+        );
+
+    };
+
+}, [user]);
+
 
     const handleLogout = () => {
 
@@ -92,6 +155,7 @@ function Dashboard(){
         navigate("/login");
 
     };
+
 
     if (loading) {
 
@@ -102,6 +166,7 @@ function Dashboard(){
         );
 
     }
+
 
     return (
         <div>
@@ -144,6 +209,6 @@ function Dashboard(){
 
         </div>
     );
-};
+}
 
 export default Dashboard;

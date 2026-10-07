@@ -9,7 +9,7 @@ import { getDoctorQueue, updateQueueStatus } from "../controllers/queue.controll
 const queueRouter = express.Router();
 
 queueRouter.get("/my",protect, authorize("doctor"), getDoctorQueue);
-queueRouter.get("/:queueId/status",protect, authorize("doctor"), updateQueueStatus)
+queueRouter.patch("/:queueId/status",protect, authorize("doctor"), updateQueueStatus)
 
 
 

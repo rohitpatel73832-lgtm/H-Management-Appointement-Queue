@@ -3,6 +3,7 @@ import ApiResponse from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
 import Doctor from "../models/doctor.models.js";
 import Queue from "../models/queue.model.js";
+import { getIO } from "../socket.js";
 
 
 
@@ -127,23 +128,29 @@ const updateQueueStatus = asyncHandler(async(req,res)=>{
 
     await queue.save();
 
+    // Send real-time update to patient
+    const io= getIO();
+    io.to(`patient:${queue.patient}`).emit(
+        "queue-updated",
+        {
+            queueId: queue._id,
+            doctorId: queue.doctor,
+            patientId: queue.patient,
+            tokenNumber: queue.tokenNumber,
+            status: queue.status
+        }
+    );
 
     return res
         .status(200)
         .json(
-
             new ApiResponse(
-
-                200,
-
+               200,
                 {
                     queue
                 },
-
                 "Queue status updated successfully"
-
             )
-
         );
 
 })

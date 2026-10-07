@@ -3,7 +3,8 @@ import connectDB from "./db/index.js"
 import app from "./app.js"
 
 import { createServer } from "http";
-import { Server } from "socket.io";
+import { initSocket } from "./socket.js";
+
 
 
 dotenv.config({
@@ -15,22 +16,9 @@ const PORT=process.env.PORT || 9004;
 //create HTTP server using Express app
 const server = createServer(app);
 
-//create Socket.io server
-const io= new Server(server,{
-    cors: {
-        origin: process.env.CORS_ORIGIN,
-        credentials: true
-    }
-})
+//initialize Socket.io
+initSocket(server);
 
-// Socket.IO connection
-io.on("connection", (socket)=>{
-    console.log(`Socket connected: ${socket.id}`)
-
-    socket.on("disconnect", ()=>{
-        console.log(`Socket disconnected: ${socket.id}`)
-    })
-});
 
 connectDB()
 .then(()=>{
