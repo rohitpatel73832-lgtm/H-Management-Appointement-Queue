@@ -5,7 +5,7 @@ import Appointment from "../models/appointement.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import Doctor from "../models/doctor.models.js";
 import razorpay from "../services/payment.service.js";
-
+import crypto from "crypto";
 
 const testPayment = asyncHandler(async (req, res) => {
 
@@ -245,8 +245,127 @@ const createPaymentOrder = asyncHandler(async (req, res) => {
 
 });
 
+const verifyPayment = asyncHandler(async(req,res) => {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+
+
+if(!razorpay_order_id || !razorpay_payment_id || !razorpay_signature){
+    throw new ApiError(
+        400,
+        "Payment verification details are required"
+    )
+}
+
+console.log(
+        "Razorpay Order ID:",
+        razorpay_order_id
+    );
+
+    console.log(
+        "Razorpay Payment ID:",
+        razorpay_payment_id
+    );
+
+    
+    // Find our payment using the Razorpay order ID
+    const payment = await Payment.findOne({
+        gatewayOrderId: razorpay_order_id
+    });
+
+    if(!payment){
+        throw new ApiError(
+            404,
+            "Payment record not found"
+        );
+    }
+
+    // Check whether this payment belongs
+    // to the logged-in patient
+    if(payment.patient.toString()!==req.userId.toString()){
+        throw new ApiError(
+            403,
+            "You are not authorized to verify this payment"
+        );
+    }
+
+    // If already paid, don't process again
+    if (payment.status === "paid") {
+        return res.status(200).json(
+            new ApiResponse(
+                200,
+                {
+                    paymentId: payment._id,
+                    status: payment.status
+                },
+                "Payment is already verified"
+            )
+        );
+    }
+
+    // Create signature
+
+    const generatedSignature =
+        crypto
+            .createHmac(
+                "sha256",
+                process.env.RAZORPAY_KEY_SECRET
+            )
+            .update(
+                razorpay_order_id +
+                "|" +
+                razorpay_payment_id
+            )
+            .digest("hex");
+
+
+    console.log(
+        "Generated Signature:",
+        generatedSignature
+    );
+
+
+    console.log(
+        "Received Signature:",
+        razorpay_signature
+    );
+
+    if(generatedSignature!=razorpay_signature){
+        throw new ApiError(
+            400,
+            "Invalid payment signature"
+        );
+    }
+
+    // Signature is valid
+    payment.status = "paid";
+    payment.gatewayPaymentId = razorpay_payment_id;
+    await payment.save();
+
+    console.log(
+        "Payment verified successfully:",
+        payment._id
+    );
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                paymentId:payment._id,
+                appointmentId:payment.appointment,
+                razorpayOrderId:razorpay_order_id,
+                razorpayPaymentId:razorpay_payment_id,
+                status:payment.status
+            },
+            "Payment verified successfully"
+            )
+
+    );
+
+});
+
 
 export {
     testPayment,
-    createPaymentOrder
+    createPaymentOrder,
+    verifyPayment
 };
