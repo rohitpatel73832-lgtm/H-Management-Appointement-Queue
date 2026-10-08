@@ -7,6 +7,7 @@ import availabilityRouter from "./routes/availability.routes.js"
 import slotRouter from "./routes/slot.routes.js"
 import appointmentRouter from "./routes/appointement.routes.js"
 import queueRouter from "./routes/queue.routes.js"
+import paymentRouter from "./routes/payment.routes.js"
 
 const app=express()
 
@@ -39,6 +40,8 @@ app.use("/api/appointements",appointmentRouter);
 //routing api for doctors viewing their todays patient list
 app.use("/api/queue", queueRouter)
 
+//routing api for payment
+app.use("/api/payments", paymentRouter);
 
 
 
