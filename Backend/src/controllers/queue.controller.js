@@ -4,6 +4,7 @@ import { ApiError } from "../utils/ApiError.js";
 import Doctor from "../models/doctor.models.js";
 import Queue from "../models/queue.model.js";
 import { getIO } from "../socket.js";
+import { createNotification } from "../services/notification.service.js";
 
 
 
@@ -125,8 +126,40 @@ const updateQueueStatus = asyncHandler(async(req,res)=>{
 
     // Update status
     queue.status = status;
-
     await queue.save();
+
+    //notifiaction message
+    const notificationMessages = {
+    called: {
+        title: "Your token has been called",
+        message: `Your token number ${queue.tokenNumber} has been called. Please be ready.`,
+        type: "queue"
+    },
+
+    serving: {
+        title: "Your consultation has started",
+        message: `Your consultation for token number ${queue.tokenNumber} is now in progress.`,
+        type: "queue"
+    },
+
+    completed: {
+        title: "Consultation completed",
+        message: `Your consultation for token number ${queue.tokenNumber} has been completed.`,
+        type: "queue"
+    }
+};
+
+const notificationDetails = notificationMessages[status];
+
+if (notificationDetails) {
+    await createNotification({
+        userId: queue.patient,
+        title: notificationDetails.title,
+        message: notificationDetails.message,
+        type: notificationDetails.type,
+        relatedId: queue._id
+    });
+}
 
     // Send real-time update to patient
     const io= getIO();

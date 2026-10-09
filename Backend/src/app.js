@@ -8,6 +8,7 @@ import slotRouter from "./routes/slot.routes.js"
 import appointmentRouter from "./routes/appointement.routes.js"
 import queueRouter from "./routes/queue.routes.js"
 import paymentRouter from "./routes/payment.routes.js"
+import notificationRouter from "./routes/notification.routes.js"
 
 const app=express()
 
@@ -42,6 +43,9 @@ app.use("/api/queue", queueRouter)
 
 //routing api for payment
 app.use("/api/payments", paymentRouter);
+
+//routing API for notification
+app.use("/api/notifications",notificationRouter);
 
 
 
