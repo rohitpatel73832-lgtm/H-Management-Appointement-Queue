@@ -4,6 +4,7 @@ import app from "./app.js"
 
 import { createServer } from "http";
 import { initSocket } from "./socket.js";
+import { connectRedis } from "./services/redis.service.js";
 
 
 
@@ -20,13 +21,28 @@ const server = createServer(app);
 initSocket(server);
 
 
-connectDB()
-.then(()=>{
+// connectDB()
+// .then(()=>{
     
-    server.listen(PORT ,()=>{
-        console.log(`Server is running at port: ${process.env.PORT}`);
-    })
+//     server.listen(PORT ,()=>{
+//         console.log(`Server is running at port: ${process.env.PORT}`);
+//     })
+// })
+// .catch((err)=>{
+//     console.log("MONGODB connection failed",err);
+// })
+
+connectDB()
+.then(async()=>{
+    //connect redis
+    await connectRedis();
+
+    //start server
+
+    server.listen(PORT, () => {
+        console.log(`Server is running at port: ${PORT}`);
+    });
 })
-.catch((err)=>{
-    console.log("MONGODB connection failed",err);
-})
+.catch((err) => {
+    console.log("MONGODB connection failed", err);
+});

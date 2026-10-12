@@ -3,6 +3,7 @@ import Doctor from "../models/doctor.models.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
 import User from "../models/user.models.js";
+import { clearDoctorListCache, getCache, setCache } from "../services/redis.service.js";
 
 const createDoctorProfile = asyncHandler(async (req, res) => {
 
@@ -39,6 +40,9 @@ const createDoctorProfile = asyncHandler(async (req, res) => {
         clinicAddress
     });
 
+    // Clear cached doctor lists after creating a profile
+    await clearDoctorListCache();
+
     return res.status(201).json(
         new ApiResponse(
             201,
@@ -52,6 +56,26 @@ const createDoctorProfile = asyncHandler(async (req, res) => {
 const getAllDoctors = asyncHandler(async (req, res) => {
 
     const { specialization, search } = req.query;
+
+    // Create a unique cache key for each filter combination
+    const normalizedSpecialization = (specialization || "").trim().toLowerCase();
+    const normalizedSearch = (search || "").trim().toLowerCase();
+
+    const cacheKey =
+        `hmanage:doctors:list:` +
+        `specialization:${encodeURIComponent(normalizedSpecialization)}:` +
+        `search:${encodeURIComponent(normalizedSearch)}`;
+
+    // Check Redis cache first
+    const cachedDoctors = await getCache(cacheKey);
+
+    if (cachedDoctors !== null) {
+        console.log("Doctor list cache HIT");
+
+        return res.status(200).json(cachedDoctors);
+    }
+
+    console.log("Doctor list cache MISS");
 
     let filter = {};
 
@@ -83,19 +107,34 @@ const getAllDoctors = asyncHandler(async (req, res) => {
     const doctors = await Doctor.find(filter)
         .populate("user", "name email");
 
-    return res.status(200).json(
-        new ApiResponse(
-            200,
-            { doctors },
-            "Doctors fetched successfully"
-        )
+    const response = new ApiResponse(
+        200,
+        { doctors },
+        "Doctors fetched successfully"
     );
+
+    // Cache the complete API response for 60 seconds
+    await setCache(cacheKey, response, 60);
+
+    return res.status(200).json(response);
 });
 
-// Get Single Doctor
+// Get Single Doctor + redis cache
 const getDoctorById = asyncHandler(async (req, res) => {
 
     const { doctorId } = req.params;
+
+    const cacheKey = `hmanage:doctors:profile:${doctorId}`;
+
+    // Check Redis cache first
+    const cachedDoctor = await getCache(cacheKey);
+    if (cachedDoctor !== null) {
+        console.log("Doctor profile cache HIT");
+
+        return res.status(200).json(cachedDoctor);
+    }
+
+    console.log("Doctor profile cache MISS");
 
     const doctor = await Doctor.findById(doctorId)
         .populate("user", "name email");
@@ -107,13 +146,15 @@ const getDoctorById = asyncHandler(async (req, res) => {
         );
     }
 
-    return res.status(200).json(
-        new ApiResponse(
-            200,
-            { doctor },
-            "Doctor fetched successfully"
-        )
+    const response = new ApiResponse(
+        200,
+        { doctor },
+        "Doctor fetched successfully"
     );
+    // Cache the complete API response for 60 seconds
+    await setCache(cacheKey, response, 60);
+
+    return res.status(200).json(response);
 });
 
 export {
