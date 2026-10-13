@@ -94,10 +94,29 @@ const clearDoctorListCache = async () => {
     }
 };
 
+const deleteCachePattern = async (pattern) => {
+    if (!redisClient || !redisReady) return;
+
+    try {
+        for await (const key of redisClient.scanIterator({
+            MATCH: pattern,
+            COUNT: 100
+        })) {
+            await redisClient.del(key);
+        }
+    } catch (error) {
+        console.error(
+            "Cache pattern deletion failed:",
+            error.message
+        );
+    }
+};
+
 export {
     connectRedis,
     getCache,
     setCache,
     deleteCache,
-    clearDoctorListCache
+    clearDoctorListCache,
+    deleteCachePattern
 };
