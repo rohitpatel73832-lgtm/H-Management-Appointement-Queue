@@ -29,7 +29,9 @@ const generateToken = (id) => {
 
 // Register user
 const registerUser = asyncHandler(async (req, res) => {
-    const { name, email, password } = req.body ?? {};
+    //const { name, email, password } = req.body ?? {};
+    const { name, email, password, role } = req.body ;
+
 
     // Validate field types
     if (
