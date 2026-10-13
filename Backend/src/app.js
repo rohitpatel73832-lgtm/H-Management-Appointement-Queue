@@ -9,6 +9,7 @@ import appointmentRouter from "./routes/appointement.routes.js"
 import queueRouter from "./routes/queue.routes.js"
 import paymentRouter from "./routes/payment.routes.js"
 import notificationRouter from "./routes/notification.routes.js"
+import helmet from "helmet";
 
 const app=express()
 
@@ -22,6 +23,7 @@ app.use(cors({
 app.use(express.json({limit: "16kb"}))
 app.use(express.urlencoded({extended:true,limit: "16kb"}))
 app.use(express.static("public"))
+app.use(helmet());
 
 //routing Api for user(patient)
 app.use('/api/users', userRouter);

@@ -5,8 +5,16 @@ import jwt from "jsonwebtoken";
 import { ApiError } from "../utils/ApiError.js";
 import bcrypt from "bcrypt";
 
-// generating token
+// Generate JWT token
 const generateToken = (id) => {
+    if (!process.env.Access_TOKEN_SECRET) {
+        throw new Error("Access_TOKEN_SECRET is missing from .env");
+    }
+
+    if (!process.env.ACCESS_TOKEN_EXPIRY) {
+        throw new Error("ACCESS_TOKEN_EXPIRY is missing from .env");
+    }
+
     return jwt.sign(
         {
             _id: id,
@@ -19,31 +27,69 @@ const generateToken = (id) => {
 };
 
 
-// register user
+// Register user
 const registerUser = asyncHandler(async (req, res) => {
+    const { name, email, password } = req.body ?? {};
 
-    const { name, email, password } = req.body;
-
-    if (!name || !email || !password) {
+    // Validate field types
+    if (
+        typeof name !== "string" ||
+        typeof email !== "string" ||
+        typeof password !== "string"
+    ) {
         throw new ApiError(
             400,
-            "Email, name and password are required"
+            "Name, email and password must be valid strings"
         );
     }
 
-    const userExist = await User.findOne({ email });
+    // Normalize input
+    const cleanName = name.trim();
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Required fields
+    if (!cleanName || !cleanEmail || !password.trim()) {
+        throw new ApiError(
+            400,
+            "Name, email and password are required"
+        );
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(cleanEmail)) {
+        throw new ApiError(
+            400,
+            "Please provide a valid email"
+        );
+    }
+
+    // Validate password length
+    if (password.length < 8 || password.length > 72) {
+        throw new ApiError(
+            400,
+            "Password must be between 8 and 72 characters"
+        );
+    }
+
+    // Check for existing user
+    const userExist = await User.findOne({
+        email: cleanEmail,
+    });
 
     if (userExist) {
         throw new ApiError(
-            400,
+            409,
             "User already exists"
         );
     }
 
+    // Create user
     const user = await User.create({
-        name,
-        email,
-        password
+        name: cleanName,
+        email: cleanEmail,
+        password,
     });
 
     const token = generateToken(user._id);
@@ -52,100 +98,151 @@ const registerUser = asyncHandler(async (req, res) => {
         new ApiResponse(
             201,
             {
-                token
+                token,
             },
             "User registered successfully"
         )
     );
 });
 
-// login-user
-const loginUser = asyncHandler(async (req, res) => {
-    const { email, password } = req.body;
 
-    if (!email || !password) {
+// Login user
+const loginUser = asyncHandler(async (req, res) => {
+    const { email, password } = req.body ?? {};
+
+    // Validate required fields and types
+    if (
+        typeof email !== "string" ||
+        typeof password !== "string" ||
+        !email.trim() ||
+        !password
+    ) {
         throw new ApiError(
             400,
             "Email and password are required"
         );
     }
-    const user = await User.findOne({ email });
 
-    if (!user) {
-        throw new ApiError(404, "User does not exist");
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(cleanEmail)) {
+        throw new ApiError(
+            400,
+            "Please provide a valid email"
+        );
     }
 
-    const isPasswordCorrect = await bcrypt.compare(password, user.password);
+    // Prevent oversized password input
+    if (password.length > 72) {
+        throw new ApiError(
+            401,
+            "Invalid email or password"
+        );
+    }
+
+    // Find user
+    const user = await User.findOne({
+        email: cleanEmail,
+    });
+
+    // Use the same error for unknown email and wrong password
+    if (!user) {
+        throw new ApiError(
+            401,
+            "Invalid email or password"
+        );
+    }
+
+    // Compare password
+    const isPasswordCorrect = await bcrypt.compare(
+        password,
+        user.password
+    );
 
     if (!isPasswordCorrect) {
-        throw new ApiError(401, "Invalid email or password");
+        throw new ApiError(
+            401,
+            "Invalid email or password"
+        );
     }
 
     const token = generateToken(user._id);
+
+    // Return safe user data only
+    const safeUser = {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+    };
 
     return res.status(200).json(
         new ApiResponse(
             200,
             {
-                user,
+                user: safeUser,
                 token,
             },
             "User logged in successfully"
         )
     );
-}); 
-// get current user
-//test
-const getCurrentUser = asyncHandler(async (req, res) => {
+});
 
+
+// Get current user
+const getCurrentUser = asyncHandler(async (req, res) => {
     return res.status(200).json(
         new ApiResponse(
             200,
             {
-                user: req.user
+                user: req.user,
             },
             "Current user fetched successfully"
         )
     );
 });
 
-//test 
 
+// Patient dashboard
 const patientDashboard = asyncHandler(async (req, res) => {
-
     return res.status(200).json(
         new ApiResponse(
             200,
             {
-                user: req.user
+                user: req.user,
             },
             "Welcome to patient dashboard"
         )
     );
 });
 
-//test
-const doctorDashboard = asyncHandler(async (req, res) => {
 
+// Doctor dashboard
+const doctorDashboard = asyncHandler(async (req, res) => {
     return res.status(200).json(
         new ApiResponse(
             200,
             {
-                user: req.user
+                user: req.user,
             },
             "Welcome to doctor dashboard"
         )
     );
 });
 
-//test
-const adminDashboard = asyncHandler(async (req, res) => {
 
+// Admin dashboard
+const adminDashboard = asyncHandler(async (req, res) => {
     return res.status(200).json(
         new ApiResponse(
             200,
             {
-                user: req.user
+                user: req.user,
             },
             "Welcome to admin dashboard"
         )
@@ -153,11 +250,11 @@ const adminDashboard = asyncHandler(async (req, res) => {
 });
 
 
-export { registerUser,
+export {
+    registerUser,
     loginUser,
     getCurrentUser,
     patientDashboard,
     doctorDashboard,
     adminDashboard,
-
- };
+};

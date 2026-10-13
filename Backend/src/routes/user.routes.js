@@ -2,11 +2,12 @@ import express from "express"
 import { registerUser,loginUser, getCurrentUser, patientDashboard, doctorDashboard, adminDashboard } from "../controllers/user.controller.js";
 import { protect } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/role.middleware.js";
+import { loginLimiter, registerLimiter } from "../middlewares/rateLimit.middlewares.js";
 
 const userRouter = express.Router();
 //  /api/users/register
-userRouter.post('/register', registerUser);
-userRouter.post('/login', loginUser);
+userRouter.post('/register',registerLimiter, registerUser);
+userRouter.post('/login',loginLimiter, loginUser);
 //auth-test
 userRouter.get('/me',protect, getCurrentUser);
 
