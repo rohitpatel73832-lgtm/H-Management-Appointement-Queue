@@ -61,9 +61,9 @@ appointmentSchema.index(
 );
 
 
-const Appointment = mongoose.model(
+const Appointement = mongoose.model(
     "Appointment",
     appointmentSchema
 );
 
-export default Appointment;
+export default Appointement;
