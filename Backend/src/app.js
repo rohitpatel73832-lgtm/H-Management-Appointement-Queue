@@ -11,6 +11,7 @@ import paymentRouter from "./routes/payment.routes.js"
 import notificationRouter from "./routes/notification.routes.js"
 import helmet from "helmet";
 import adminRouter from "./routes/admin.routes.js"
+import aiRouter from "./routes/ai.routes.js"
 
 const app=express()
 
@@ -52,6 +53,9 @@ app.use("/api/notifications",notificationRouter);
 
 //routing api for admin
 app.use("/api/admin", adminRouter);
+
+//routing api for ai
+app.use("/api/ai", aiRouter);
 
 
 
