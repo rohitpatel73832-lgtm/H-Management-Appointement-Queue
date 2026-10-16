@@ -8,13 +8,13 @@ const generatePreConsultationSummary = async (symptoms) => {
   }
 
   try {
-    const response = await ai.models.generateContent({
-      model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
-      contents: `
-You are an assistant that prepares patient-provided information
-for a doctor consultation.
+    const interaction = await ai.interactions.create({
+      model: process.env.GEMINI_MODEL || "gemini-3.8-flash",
 
-Return only valid JSON in this format:
+      input: `
+You prepare patient-provided information for a doctor consultation.
+
+Return only valid JSON with these fields:
 {
     "summary": "A short factual summary of the reported symptoms",
     "questionsForDoctor": [
@@ -24,24 +24,21 @@ Return only valid JSON in this format:
 }
 
 Rules:
-- Summarize only the information provided.
+- Summarize only what the patient reported.
 - Do not diagnose diseases.
 - Do not recommend medicines or treatments.
 - Do not invent symptoms or medical history.
 - Provide 2 to 4 neutral questions for the doctor.
-- This output must not replace a qualified clinician's assessment.
+- This is not a diagnosis.
 
 Patient-reported symptoms:
 ${symptoms}
             `,
-      config: {
-        responseMimeType: "application/json",
-        temperature: 0.2,
-        maxOutputTokens: 500,
-      },
+
+      store: false,
     });
 
-    const text = response.text;
+    const text = interaction.output_text;
 
     if (!text) {
       const error = new Error("AI returned an empty response");
@@ -54,13 +51,14 @@ ${symptoms}
     try {
       data = JSON.parse(text);
     } catch {
-      const error = new Error("AI returned an invalid response");
+      const error = new Error("AI returned invalid JSON");
       error.statusCode = 502;
       throw error;
     }
 
     if (
       typeof data.summary !== "string" ||
+      !data.summary.trim() ||
       !Array.isArray(data.questionsForDoctor) ||
       !data.questionsForDoctor.every((question) => typeof question === "string")
     ) {
@@ -75,42 +73,26 @@ ${symptoms}
       disclaimer:
         "This AI-generated summary is not a diagnosis. A qualified clinician must assess the symptoms.",
     };
-     
-     } catch (error) {
+  } catch (error) {
     if (error.statusCode) {
-        throw error;
+      throw error;
     }
 
-    // Log diagnostic information, never the API key or symptoms
     console.error("AI summary generation failed:", {
-        name: error.name,
-        message: error.message,
-        status: error.status,
-        code: error.code,
+      name: error.name,
+      message: error.message,
+      status: error.status,
     });
 
     const serviceError = new Error(
-        "AI service is temporarily unavailable"
+      error.status === 503
+        ? "Gemini is temporarily unavailable. Please try again later."
+        : "AI service is temporarily unavailable"
     );
 
-    serviceError.statusCode = 503;
+    serviceError.statusCode = error.status === 503 ? 503 : 502;
     throw serviceError;
-}
-
-//   } catch (error) {
-//     if (error.statusCode) {
-//       throw error;
-//     }
-
-//     console.error("AI summary generation failed");
-
-//     const serviceError = new Error("AI service is temporarily unavailable");
-//     serviceError.statusCode = 503;
-//     throw serviceError;
-
-
   }
-
-//};
+};
 
 export { generatePreConsultationSummary };

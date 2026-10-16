@@ -1,54 +1,68 @@
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 
+import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
-
 import ProtectedRoute from "./components/ProtectedRoute";
 import DoctorDetails from "./pages/DoctorDetails";
 import MyAppointements from "./pages/MyAppointements";
+import AppLayout from "./components/AppLayout";
+import Doctors from "./pages/Doctors";
 
 function App() {
+  return (
+    <Routes>
+      {/* Public home page — no shared dashboard layout */}
+      <Route path="/" element={<Home />} />
 
-    return (
-        <Routes>
+      {/* Pages that use the shared layout */}
+      <Route element={<AppLayout />}>
+        <Route path="/login" element={<Login />} />
 
-            {/* Public Routes */}
+        <Route path="/register" element={<Register />} />
 
-            <Route
-                path="/login"
-                element={<Login />}
-            />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
 
-            <Route
-                path="/register"
-                element={<Register />}
-            />
+        <Route
+          path="/doctors"
+          element={
+            <ProtectedRoute>
+              <Doctors />
+            </ProtectedRoute>
+          }
+        />
 
+        <Route
+          path="/doctor/:doctorId"
+          element={
+            <ProtectedRoute>
+              <DoctorDetails />
+            </ProtectedRoute>
+          }
+        />
 
-            {/* Protected Routes */}
+        <Route
+          path="/my-appointements"
+          element={
+            <ProtectedRoute>
+              <MyAppointements />
+            </ProtectedRoute>
+          }
+        />
+      </Route>
 
-            <Route
-                path="/dashboard"
-                element={
-                    <ProtectedRoute>
-                        <Dashboard />
-                    </ProtectedRoute>
-                }
-            />
-
-            <Route
-                path="/doctor/:doctorId"
-                element={<DoctorDetails />}
-            />
-
-            <Route
-                path="/my-appointements"
-                element={<MyAppointements />}
-            />
-
-        </Routes>
-    );
+      {/* Redirect unknown URLs to the home page */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
 }
 
 export default App;

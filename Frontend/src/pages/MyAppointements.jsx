@@ -1,154 +1,329 @@
-import { useEffect, useState } from "react";
-import { getMyAppointments } from "../services/appointementApi";
-import { createPaymentOrder, verifyPayment } from "../services/paymentApi";
 
-//import {  getMyAppointments } from "../services/appointmentApi";
+import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { getMyAppointments } from "../services/appointementApi";
+import {
+    createPaymentOrder,
+    verifyPayment
+} from "../services/paymentApi";
 
 const MyAppointments = () => {
-  const [appointments, setAppointments] = useState([]);
+    const [appointments, setAppointments] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+    const [paymentError, setPaymentError] = useState("");
+    const [payingId, setPayingId] = useState(null);
+    const [successMessage, setSuccessMessage] = useState("");
 
-  const [loading, setLoading] = useState(true);
+    const fetchAppointments = useCallback(async () => {
+        try {
+            setLoading(true);
+            setError("");
 
-  const [error, setError] = useState("");
+            const response = await getMyAppointments();
+            setAppointments(response.data.appointments || []);
+        } catch (error) {
+            setError(
+                error.response?.data?.message ||
+                "Failed to fetch appointments."
+            );
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
-  // Fetch appointments
+    useEffect(() => {
+        fetchAppointments();
+    }, [fetchAppointments]);
 
-  const fetchAppointments = async () => {
-    try {
-      setLoading(true);
+    const handlePayment = async (appointment) => {
+        setPaymentError("");
+        setSuccessMessage("");
 
-      const response = await getMyAppointments();
+        if (!window.Razorpay) {
+            setPaymentError(
+                "Razorpay Checkout did not load. Please refresh and try again."
+            );
+            return;
+        }
 
-      setAppointments(response.data.appointments);
-    } catch (error) {
-      setError(error.response?.data?.message || "Failed to fetch appointments");
-    } finally {
-      setLoading(false);
+        try {
+            setPayingId(appointment._id);
+
+            const response = await createPaymentOrder(appointment._id);
+            const paymentData = response.data;
+
+            const options = {
+                key: paymentData.keyId,
+                amount: paymentData.amount,
+                currency: paymentData.currency,
+                name: "H-Manage",
+                description: "Doctor Consultation",
+                order_id: paymentData.razorpayOrderId,
+
+                handler: async (razorpayResponse) => {
+                    try {
+                        const verification = await verifyPayment({
+                            razorpay_order_id:
+                                razorpayResponse.razorpay_order_id,
+                            razorpay_payment_id:
+                                razorpayResponse.razorpay_payment_id,
+                            razorpay_signature:
+                                razorpayResponse.razorpay_signature
+                        });
+
+                        if (verification.success) {
+                            setSuccessMessage(
+                                "Payment verified successfully."
+                            );
+                            await fetchAppointments();
+                        } else {
+                            setPaymentError(
+                                "Payment verification was unsuccessful. Please check your appointment status."
+                            );
+                        }
+                    } catch (error) {
+                        setPaymentError(
+                            error.response?.data?.message ||
+                            "Payment verification failed. Please check your appointment status."
+                        );
+                    } finally {
+                        setPayingId(null);
+                    }
+                },
+
+                prefill: {
+                    name: appointment.patient?.name || "",
+                    email: appointment.patient?.email || ""
+                },
+
+                theme: {
+                    color: "#2563eb"
+                },
+
+                modal: {
+                    ondismiss: () => setPayingId(null)
+                }
+            };
+
+            const razorpay = new window.Razorpay(options);
+
+            razorpay.on("payment.failed", (event) => {
+                setPaymentError(
+                    event.error?.description || "Payment failed. Please try again."
+                );
+                setPayingId(null);
+            });
+
+            razorpay.open();
+        } catch (error) {
+            setPaymentError(
+                error.response?.data?.message || "Could not start payment."
+            );
+            setPayingId(null);
+        }
+    };
+
+    const formatDate = (date) => {
+        if (!date) return "Date unavailable";
+
+        const parsed = new Date(`${date}T00:00:00`);
+        return Number.isNaN(parsed.getTime())
+            ? date
+            : parsed.toLocaleDateString("en-IN", {
+                day: "numeric",
+                month: "short",
+                year: "numeric"
+            });
+    };
+
+    const statusStyle = (status) => {
+        switch (status?.toLowerCase()) {
+            case "booked":
+                return "bg-blue-50 text-blue-700 ring-blue-200";
+            case "confirmed":
+            case "completed":
+            case "paid":
+                return "bg-green-50 text-green-700 ring-green-200";
+            case "cancelled":
+                return "bg-red-50 text-red-700 ring-red-200";
+            default:
+                return "bg-slate-100 text-slate-700 ring-slate-200";
+        }
+    };
+
+    if (loading) {
+        return (
+            <main className="min-h-[70vh] bg-slate-50 px-4 py-16">
+                <div className="mx-auto max-w-5xl animate-pulse space-y-5">
+                    <div className="h-9 w-64 rounded-lg bg-slate-200" />
+                    <div className="h-44 rounded-2xl bg-white shadow-sm" />
+                    <div className="h-44 rounded-2xl bg-white shadow-sm" />
+                </div>
+            </main>
+        );
     }
-  };
 
-  useEffect(() => {
-    fetchAppointments();
-  }, []);
+    return (
+        <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-5xl">
+                <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                    <div>
+                        <p className="text-sm font-semibold uppercase tracking-wider text-blue-600">
+                            Your healthcare
+                        </p>
+                        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+                            My appointments
+                        </h1>
+                        <p className="mt-2 text-slate-500">
+                            Review your bookings and manage consultation payments.
+                        </p>
+                    </div>
 
-  // Loading
+                    <button
+                        type="button"
+                        onClick={fetchAppointments}
+                        className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100"
+                    >
+                        Refresh appointments
+                    </button>
+                </div>
 
-  if (loading) {
-    return <div>Loading appointments...</div>;
-  }
+                {error && (
+                    <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                        <p>{error}</p>
+                        <button
+                            type="button"
+                            onClick={fetchAppointments}
+                            className="mt-2 font-semibold underline"
+                        >
+                            Try again
+                        </button>
+                    </div>
+                )}
 
-  // Error
+                {paymentError && (
+                    <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                        {paymentError}
+                    </div>
+                )}
 
-  if (error) {
-    return <div>{error}</div>;
-  }
+                {successMessage && (
+                    <div className="mb-4 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+                        {successMessage}
+                    </div>
+                )}
 
-  const handlePayment = async (appointment) => {
-    try {
-      console.log("Starting payment...");
+                {!error && appointments.length === 0 && (
+                    <section className="rounded-2xl border border-slate-200 bg-white px-6 py-16 text-center shadow-sm">
+                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-3xl text-blue-600">
+                            <span aria-hidden="true">▦</span>
+                        </div>
+                        <h2 className="mt-5 text-xl font-bold text-slate-900">
+                            No appointments yet
+                        </h2>
+                        <p className="mx-auto mt-2 max-w-md text-slate-500">
+                            Browse available doctors and book a consultation that suits your schedule.
+                        </p>
+                        <Link
+                            to="/doctors"
+                            className="mt-6 inline-flex rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-blue-700"
+                        >
+                            Find a doctor
+                        </Link>
+                    </section>
+                )}
 
-      // 1. Create Razorpay order
-      const response = await createPaymentOrder(appointment._id);
+                <div className="space-y-5">
+                    {appointments.map((appointment) => {
+                        const doctor = appointment.doctor;
+                        const isPaying = payingId === appointment._id;
 
-      console.log("Order created:", response);
+                        return (
+                            <article
+                                key={appointment._id}
+                                className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md"
+                            >
+                                <div className="border-b border-slate-100 p-5 sm:p-6">
+                                    <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+                                        <div className="flex items-start gap-4">
+                                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-xl font-bold text-blue-700">
+                                                {doctor?.user?.name?.charAt(0)?.toUpperCase() || "D"}
+                                            </div>
 
-      const paymentData = response.data;
+                                            <div>
+                                                <h2 className="text-lg font-bold text-slate-900">
+                                                    Dr. {doctor?.user?.name || "Doctor"}
+                                                </h2>
+                                                <p className="mt-1 text-sm font-medium text-blue-700">
+                                                    {doctor?.specialization || "Specialization unavailable"}
+                                                </p>
+                                                <p className="mt-2 text-xs text-slate-400">
+                                                    Booking ID: {appointment._id}
+                                                </p>
+                                            </div>
+                                        </div>
 
-      // 2. Razorpay Checkout options
-      const options = {
-        key: paymentData.keyId,
+                                        <span
+                                            className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold capitalize ring-1 ring-inset ${statusStyle(appointment.status)}`}
+                                        >
+                                            {appointment.status || "Unknown"}
+                                        </span>
+                                    </div>
+                                </div>
 
-        amount: paymentData.amount,
+                                <div className="grid gap-4 p-5 sm:grid-cols-3 sm:p-6">
+                                    <div className="rounded-xl bg-slate-50 p-4">
+                                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                            Appointment date
+                                        </p>
+                                        <p className="mt-2 font-semibold text-slate-900">
+                                            {formatDate(appointment.date)}
+                                        </p>
+                                    </div>
 
-        currency: paymentData.currency,
+                                    <div className="rounded-xl bg-slate-50 p-4">
+                                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                            Time slot
+                                        </p>
+                                        <p className="mt-2 font-semibold text-slate-900">
+                                            {appointment.startTime} – {appointment.endTime}
+                                        </p>
+                                    </div>
 
-        name: "H-Manage",
+                                    <div className="rounded-xl bg-slate-50 p-4">
+                                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                            Consultation fee
+                                        </p>
+                                        <p className="mt-2 text-xl font-bold text-slate-900">
+                                            ₹{doctor?.consultationFee ?? "—"}
+                                        </p>
+                                    </div>
+                                </div>
 
-        description: "Doctor Consultation",
+                                <div className="flex flex-col justify-between gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:px-6">
+                                    <p className="text-sm text-slate-500">
+                                        Keep your booking details handy before your visit.
+                                    </p>
 
-        order_id: paymentData.razorpayOrderId,
-
-        // 3. Successful payment
-        handler: async function (razorpayResponse) {
-          console.log("Razorpay response:", razorpayResponse);
-
-          const verifyResponse = await verifyPayment({
-            razorpay_order_id: razorpayResponse.razorpay_order_id,
-
-            razorpay_payment_id: razorpayResponse.razorpay_payment_id,
-
-            razorpay_signature: razorpayResponse.razorpay_signature,
-          });
-
-          console.log("Verification:", verifyResponse);
-
-          if (verifyResponse.success) {
-            alert("Payment successful!");
-          }
-        },
-
-        prefill: {
-          name: "Test Patient",
-
-          email: "test@example.com",
-        },
-
-        theme: {
-          color: "#3399cc",
-        },
-      };
-
-      // 4. Create Razorpay instance
-      const razorpay = new window.Razorpay(options);
-
-      // 5. Payment failed
-      razorpay.on("payment.failed", function (response) {
-        console.log("Payment failed:", response);
-
-        alert("Payment failed");
-      });
-
-      // 6. Open Razorpay
-      razorpay.open();
-    } catch (error) {
-      console.log("Payment error:", error);
-
-      console.log("Backend error:", error.response?.data);
-
-      alert(error.response?.data?.message || "Payment failed");
-    }
-  };
-
-  return (
-    <div>
-      <h1>My Appointments</h1>
-
-      {appointments.length === 0 ? (
-        <p>You don't have any appointments.</p>
-      ) : (
-        appointments.map((appointment) => (
-          <div key={appointment._id}>
-            <h2>{appointment.doctor?.user?.name}</h2>
-
-            <p>{appointment.doctor?.specialization}</p>
-
-            <p>Date: {appointment.date}</p>
-
-            <p>
-              Time: {appointment.startTime}
-              {" - "}
-              {appointment.endTime}
-            </p>
-
-            <p>Status: {appointment.status}</p>
-            <button onClick={() => handlePayment(appointment)}>
-              Pay ₹{appointment.doctor?.consultationFee}
-            </button>
-          </div>
-        ))
-      )}
-    </div>
-  );
+                                    <button
+                                        type="button"
+                                        onClick={() => handlePayment(appointment)}
+                                        disabled={payingId !== null}
+                                        className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        {isPaying
+                                            ? "Processing..."
+                                            : `Pay ₹${doctor?.consultationFee ?? ""}`}
+                                    </button>
+                                </div>
+                            </article>
+                        );
+                    })}
+                </div>
+            </div>
+        </main>
+    );
 };
 
 export default MyAppointments;
