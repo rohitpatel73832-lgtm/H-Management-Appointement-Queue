@@ -91,21 +91,22 @@ function DoctorDashboard() {
         </h1>
 
         <p className="mt-3 max-w-xl text-blue-100">
-          Manage your availability and appointments from your H-Manage
-          dashboard.
+          Manage your availability, appointments, patient queue, and
+          professional profile from your H-Manage dashboard.
         </p>
       </div>
 
       {/* Dashboard cards */}
       <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {/* Availability card */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
           <h2 className="text-lg font-bold text-slate-900">
             My Availability
           </h2>
 
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Manage the days and time slots when patients can book appointments.
+            Manage the days and time slots when patients can book
+            appointments.
           </p>
 
           <button
@@ -118,13 +119,13 @@ function DoctorDashboard() {
         </div>
 
         {/* Appointments card */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
           <h2 className="text-lg font-bold text-slate-900">
             My Appointments
           </h2>
 
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            View your scheduled appointments, patient details, dates, times,
+            View scheduled appointments, patient details, dates, times,
             and booking statuses.
           </p>
 
@@ -137,19 +138,48 @@ function DoctorDashboard() {
           </button>
         </div>
 
+        {/* Patient Queue card */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+          <h2 className="text-lg font-bold text-slate-900">
+            Patient Queue
+          </h2>
+
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            View patient tokens, call the next patient, manage consultations,
+            and update queue statuses.
+          </p>
+
+          <button
+            type="button"
+            onClick={() => navigate("/doctor-queue")}
+            className="mt-4 rounded-xl bg-blue-600 px-4 py-2 font-semibold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200"
+          >
+            Manage Patient Queue
+          </button>
+        </div>
+
         {/* Profile card */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
           <h2 className="text-lg font-bold text-slate-900">
             My Profile
           </h2>
 
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Review your account details and doctor profile.
+            View and update your professional details, qualifications,
+            consultation fee, and clinic information.
           </p>
 
           <p className="mt-4 break-words text-sm font-medium text-blue-600">
             {user.email}
           </p>
+
+          <button
+            type="button"
+            onClick={() => navigate("/doctor-profile")}
+            className="mt-4 rounded-xl bg-blue-600 px-4 py-2 font-semibold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200"
+          >
+            View / Edit Profile
+          </button>
         </div>
       </div>
     </div>

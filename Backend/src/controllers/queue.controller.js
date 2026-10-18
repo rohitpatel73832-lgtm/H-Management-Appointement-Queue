@@ -7,6 +7,7 @@ import Queue from "../models/queue.model.js";
 import { getIO } from "../socket.js";
 import { createNotification } from "../services/notification.service.js";
 import { clearAppointmentCaches } from "../services/appointementCache.service.js";
+import Appointement from "../models/appointement.model.js";
 
 const getDoctorQueue = asyncHandler(async (req, res) => {
     const { date } = req.query;
@@ -85,8 +86,28 @@ const updateQueueStatus = asyncHandler(async (req, res) => {
     }
 
     // Update queue status
-    queue.status = status;
-    await queue.save();
+    // queue.status = status;
+    // await queue.save();
+
+    // Update queue and linked appointment together
+if (status === "completed") {
+    const appointment = await Appointement.findById(
+        queue.appointment
+    );
+
+    if (!appointment) {
+        throw new ApiError(
+            404,
+            "Appointment linked to this queue was not found"
+        );
+    }
+
+    appointment.status = "completed";
+    await appointment.save();
+}
+
+queue.status = status;
+await queue.save();
 
     // Invalidate cached appointment lists after status updates
     await clearAppointmentCaches({

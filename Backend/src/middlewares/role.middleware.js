@@ -10,6 +10,10 @@ const authorize = (...allowedRoles) => {
                 "User is not authenticated"
             );
         }
+        // console.log("Authenticated user:", req.user.email);
+        // console.log("Authenticated role:", req.user.role);
+        // console.log("Allowed roles:", allowedRoles);
+
 
         if (!allowedRoles.includes(req.user.role)) {
             throw new ApiError(

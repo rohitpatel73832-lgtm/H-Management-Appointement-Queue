@@ -1,4 +1,4 @@
-
+import mongoose from "mongoose";
 import asyncHandler from "../utils/AsyncHandler.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
@@ -241,14 +241,12 @@ const getDoctorAppointments = asyncHandler(async (req, res) => {
     );
 });
 
-const completeAppointment = asyncHandler(async (req, res) => {
-    const { appointementId } = req.params;
-const appointmentId = appointementId;
-//     console.log("Route params:", req.params);
-// console.log("Appointment ID:", appointmentId);
 
-    if (!appointmentId) {
-        throw new ApiError(400, "Appointment ID is required");
+const completeAppointment = asyncHandler(async (req, res) => {
+    const { appointementId: appointmentId } = req.params;
+
+    if (!appointmentId || !mongoose.isValidObjectId(appointmentId)) {
+        throw new ApiError(400, "Valid appointment ID is required");
     }
 
     // Find the doctor profile of the logged-in user
@@ -260,44 +258,80 @@ const appointmentId = appointementId;
         throw new ApiError(404, "Doctor profile not found");
     }
 
-    // Find only an appointment belonging to this doctor
-    const appointment = await Appointment.findOne({
-        _id: appointmentId,
-        doctor: doctor._id
-    });
+    const session = await mongoose.startSession();
 
-    if (!appointment) {
-        throw new ApiError(
-            404,
-            "Appointment not found for this doctor"
-        );
+    let completedAppointment;
+
+    try {
+        await session.withTransaction(async () => {
+            // Find only an appointment belonging to this doctor
+            const appointment = await Appointment.findOne({
+                _id: appointmentId,
+                doctor: doctor._id
+            }).session(session);
+
+            if (!appointment) {
+                throw new ApiError(
+                    404,
+                    "Appointment not found for this doctor"
+                );
+            }
+
+            if (appointment.status !== "booked") {
+                throw new ApiError(
+                    400,
+                    `Cannot complete an appointment with status "${appointment.status}"`
+                );
+            }
+
+            // Find the queue entry linked to this appointment
+            const queue = await Queue.findOne({
+                appointment: appointment._id,
+                doctor: doctor._id
+            }).session(session);
+
+            if (!queue) {
+                throw new ApiError(
+                    404,
+                    "Queue entry not found for this appointment"
+                );
+            }
+
+            if (queue.status !== "serving") {
+                throw new ApiError(
+                    400,
+                    "The patient must be in serving status before completing the appointment"
+                );
+            }
+
+            // Update both records within the same transaction
+            appointment.status = "completed";
+            queue.status = "completed";
+
+            await appointment.save({ session });
+            await queue.save({ session });
+
+            completedAppointment = appointment;
+        });
+    } finally {
+        await session.endSession();
     }
 
-    // Only booked appointments can be completed
-    if (appointment.status !== "booked") {
-        throw new ApiError(
-            400,
-            `Cannot complete an appointment with status "${appointment.status}"`
-        );
-    }
-
-    appointment.status = "completed";
-    await appointment.save();
-
-    // Clear cached appointment lists
+    // Clear cached appointment lists after the transaction succeeds
     await clearAppointmentCaches({
-        patientId: String(appointment.patient),
+        patientId: String(completedAppointment.patient),
         doctorId: String(doctor._id)
     });
 
     return res.status(200).json(
         new ApiResponse(
             200,
-            { appointment },
-            "Appointment marked as completed successfully"
+            { appointment: completedAppointment },
+            "Appointment and queue marked as completed successfully"
         )
     );
 });
+
 
 export {
     createAppointment,

@@ -12,6 +12,8 @@ import Doctors from "./pages/Doctors";
 import DoctorDashboard from "./pages/DoctorDashboard";
 import DoctorAvailability from "./pages/DoctorAvailability";
 import DoctorAppointments from "./pages/DoctorAppointments";
+import DoctorQueue from "./pages/DoctorQueue";
+import DoctorProfile from "./pages/DoctorProfile";
 
 function App() {
   return (
@@ -76,6 +78,23 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={["patient"]}>
               <DoctorDetails />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/doctor-queue"
+          element={
+            <ProtectedRoute allowedRoles={["doctor"]}>
+              <DoctorQueue />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/doctor-profile"
+          element={
+            <ProtectedRoute allowedRoles={["doctor"]}>
+              <DoctorProfile />
             </ProtectedRoute>
           }
         />
