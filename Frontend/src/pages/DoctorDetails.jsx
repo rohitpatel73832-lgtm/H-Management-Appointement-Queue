@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../services/api.js";
@@ -51,8 +50,7 @@ function DoctorDetails() {
       } catch (err) {
         if (active) {
           setError(
-            err.response?.data?.message ||
-              "Unable to load doctor details."
+            err.response?.data?.message || "Unable to load doctor details.",
           );
         }
       } finally {
@@ -82,15 +80,16 @@ function DoctorDetails() {
 
       // The service returns Axios response.data.
       // Support either common API response shape.
-      const availableSlots =
-        response?.data?.slots ?? response?.slots ?? [];
+      // const availableSlots = response?.data?.slots ?? response?.slots ?? [];
+      const availableSlots = response?.data?.slots ?? [];
 
       setSlots(Array.isArray(availableSlots) ? availableSlots : []);
+      
     } catch (err) {
       setSlots([]);
       setError(
         err.response?.data?.message ||
-          "Unable to load available slots. Please try again."
+          "Unable to load available slots. Please try again.",
       );
     } finally {
       setLoading(false);
@@ -120,22 +119,23 @@ function DoctorDetails() {
       });
 
       setMessageType("success");
-      setMessage(
-        response?.message || "Appointment booked successfully!"
-      );
+      setMessage(response?.message || "Appointment booked successfully!");
       setSelectedSlot(null);
 
-      // Refresh the available slots after booking.
-      const slotsResponse = await getAvailableSlots(doctorId, date);
-      const availableSlots =
-        slotsResponse?.data?.slots ?? slotsResponse?.slots ?? [];
+      try {
+        const slotsResponse = await getAvailableSlots(doctorId, date);
 
-      setSlots(Array.isArray(availableSlots) ? availableSlots : []);
+        const availableSlots = slotsResponse?.data?.slots ?? [];
+
+        setSlots(Array.isArray(availableSlots) ? availableSlots : []);
+      } catch {
+        // Booking succeeded; availability refresh can be retried separately.
+        setSlots([]);
+      }
     } catch (err) {
       setMessageType("error");
       setMessage(
-        err.response?.data?.message ||
-          "Booking failed. Please try again."
+        err.response?.data?.message || "Booking failed. Please try again.",
       );
     } finally {
       setBooking(false);
@@ -229,18 +229,14 @@ function DoctorDetails() {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-xl bg-slate-50 p-4">
-              <p className="text-xs font-medium text-slate-500">
-                EXPERIENCE
-              </p>
+              <p className="text-xs font-medium text-slate-500">EXPERIENCE</p>
               <p className="mt-2 text-lg font-bold text-slate-900">
                 {doctor.experience ?? 0} years
               </p>
             </div>
 
             <div className="rounded-xl bg-blue-50 p-4">
-              <p className="text-xs font-medium text-blue-700">
-                CONSULTATION
-              </p>
+              <p className="text-xs font-medium text-blue-700">CONSULTATION</p>
               <p className="mt-2 text-lg font-bold text-blue-800">
                 {doctor.consultationFee != null
                   ? `₹${doctor.consultationFee}`
@@ -317,10 +313,7 @@ function DoctorDetails() {
               className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
             >
               {error}
-              <button
-                onClick={fetchSlots}
-                className="ml-2 font-bold underline"
-              >
+              <button onClick={fetchSlots} className="ml-2 font-bold underline">
                 Retry
               </button>
             </div>

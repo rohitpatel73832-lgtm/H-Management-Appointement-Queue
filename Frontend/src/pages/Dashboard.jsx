@@ -20,9 +20,7 @@ function Dashboard() {
   // Queue state
   const [queueDate, setQueueDate] = useState(() => {
     const now = new Date();
-    const localDate = new Date(
-      now.getTime() - now.getTimezoneOffset() * 60000
-    );
+    const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
     return localDate.toISOString().slice(0, 10);
   });
 
@@ -38,8 +36,7 @@ function Dashboard() {
   const [notifications, setNotifications] = useState([]);
   const [notificationLoading, setNotificationLoading] = useState(true);
   const [notificationError, setNotificationError] = useState("");
-  const [notificationActionError, setNotificationActionError] =
-    useState("");
+  const [notificationActionError, setNotificationActionError] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
 
   // Load the current user.
@@ -52,14 +49,18 @@ function Dashboard() {
 
         if (!active) return;
 
-        setUser(response.data?.data?.user ?? null);
+        const currentUser = response.data?.data?.user;
+
+        if (!currentUser) {
+          throw new Error("Unable to retrieve your account details.");
+        }
+
+        setUser(currentUser);
         setError("");
       } catch (err) {
         if (!active) return;
 
-        setError(
-          err.response?.data?.message || "Unable to load your account."
-        );
+        setError(err.response?.data?.message || "Unable to load your account.");
 
         localStorage.removeItem("token");
         socket.disconnect();
@@ -110,7 +111,7 @@ function Dashboard() {
         setQueueNotFound(false);
         setQueueError(
           err.response?.data?.message ||
-            "Unable to load queue information. Please try again."
+            "Unable to load queue information. Please try again.",
         );
       }
     } finally {
@@ -147,10 +148,7 @@ function Dashboard() {
 
     const handleQueueUpdate = (update) => {
       // Ignore events explicitly intended for a different patient.
-      if (
-        update?.patientId &&
-        String(update.patientId) !== String(user._id)
-      ) {
+      if (update?.patientId && String(update.patientId) !== String(user._id)) {
         return;
       }
 
@@ -180,7 +178,7 @@ function Dashboard() {
       setNotifications(result.data?.notifications ?? []);
     } catch (err) {
       setNotificationError(
-        err.response?.data?.message || "Could not load notifications."
+        err.response?.data?.message || "Could not load notifications.",
       );
     } finally {
       setNotificationLoading(false);
@@ -240,13 +238,12 @@ function Dashboard() {
         previous.map((notification) =>
           notification._id === notificationId
             ? { ...notification, isRead: true }
-            : notification
-        )
+            : notification,
+        ),
       );
     } catch (err) {
       setNotificationActionError(
-        err.response?.data?.message ||
-          "Could not mark notification as read."
+        err.response?.data?.message || "Could not mark notification as read.",
       );
     } finally {
       setActionLoading(false);
@@ -265,12 +262,12 @@ function Dashboard() {
         previous.map((notification) => ({
           ...notification,
           isRead: true,
-        }))
+        })),
       );
     } catch (err) {
       setNotificationActionError(
         err.response?.data?.message ||
-          "Could not mark all notifications as read."
+          "Could not mark all notifications as read.",
       );
     } finally {
       setActionLoading(false);
@@ -285,7 +282,7 @@ function Dashboard() {
   };
 
   const unreadCount = notifications.filter(
-    (notification) => !notification.isRead
+    (notification) => !notification.isRead,
   ).length;
 
   const formatDate = (value) => {
@@ -474,9 +471,7 @@ function Dashboard() {
               <div className="flex items-center gap-2">
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
 
-                <h2 className="text-xl font-bold text-slate-900">
-                  My queue
-                </h2>
+                <h2 className="text-xl font-bold text-slate-900">My queue</h2>
               </div>
 
               <p className="mt-1 text-sm text-slate-500">
@@ -487,7 +482,6 @@ function Dashboard() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <label className="text-sm font-medium text-slate-600">
                 Queue date
-
                 <input
                   type="date"
                   value={queueDate}
@@ -510,10 +504,7 @@ function Dashboard() {
           {queueLoading ? (
             <div className="mt-6 grid animate-pulse gap-4 sm:grid-cols-3">
               {[1, 2, 3].map((item) => (
-                <div
-                  key={item}
-                  className="h-28 rounded-xl bg-slate-100"
-                />
+                <div key={item} className="h-28 rounded-xl bg-slate-100" />
               ))}
             </div>
           ) : queueError ? (
@@ -535,17 +526,13 @@ function Dashboard() {
           ) : waitingTime ? (
             <div className="mt-6 grid gap-4 sm:grid-cols-3">
               <div className="rounded-2xl bg-blue-50 p-5">
-                <p className="text-sm font-medium text-blue-700">
-                  Your token
-                </p>
+                <p className="text-sm font-medium text-blue-700">Your token</p>
 
                 <p className="mt-2 text-3xl font-bold text-blue-900">
                   {waitingTime.tokenNumber ?? "—"}
                 </p>
 
-                <p className="mt-1 text-xs text-blue-700">
-                  Your queue number
-                </p>
+                <p className="mt-1 text-xs text-blue-700">Your queue number</p>
               </div>
 
               <div className="rounded-2xl bg-violet-50 p-5">
@@ -620,9 +607,7 @@ function Dashboard() {
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
           <div>
-            <h2 className="text-xl font-bold text-slate-900">
-              Notifications
-            </h2>
+            <h2 className="text-xl font-bold text-slate-900">Notifications</h2>
 
             <p className="mt-1 text-sm text-slate-500">
               Appointment and queue updates
@@ -698,9 +683,7 @@ function Dashboard() {
                 <div className="flex items-start gap-3">
                   <span
                     className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${
-                      notification.isRead
-                        ? "bg-slate-300"
-                        : "bg-blue-600"
+                      notification.isRead ? "bg-slate-300" : "bg-blue-600"
                     }`}
                   />
 
@@ -730,9 +713,7 @@ function Dashboard() {
                         <button
                           type="button"
                           disabled={actionLoading}
-                          onClick={() =>
-                            handleMarkAsRead(notification._id)
-                          }
+                          onClick={() => handleMarkAsRead(notification._id)}
                           className="mt-3 text-sm font-semibold text-blue-700 hover:underline disabled:opacity-50"
                         >
                           Mark as read
@@ -749,9 +730,7 @@ function Dashboard() {
 
       {/* Account action */}
       <div className="flex flex-col items-start justify-between gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center">
-        <p className="text-sm text-slate-500">
-          Signed in as {user?.email}
-        </p>
+        <p className="text-sm text-slate-500">Signed in as {user?.email}</p>
 
         <button
           type="button"

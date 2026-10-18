@@ -9,57 +9,88 @@ import DoctorDetails from "./pages/DoctorDetails";
 import MyAppointements from "./pages/MyAppointements";
 import AppLayout from "./components/AppLayout";
 import Doctors from "./pages/Doctors";
+import DoctorDashboard from "./pages/DoctorDashboard";
+import DoctorAvailability from "./pages/DoctorAvailability";
+import DoctorAppointments from "./pages/DoctorAppointments";
 
 function App() {
   return (
     <Routes>
-      {/* Public home page — no shared dashboard layout */}
       <Route path="/" element={<Home />} />
 
-      {/* Pages that use the shared layout */}
       <Route element={<AppLayout />}>
         <Route path="/login" element={<Login />} />
-
         <Route path="/register" element={<Register />} />
 
+        {/* Patient dashboard */}
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["patient"]}>
               <Dashboard />
             </ProtectedRoute>
           }
         />
 
         <Route
+          path="/doctor-availability"
+          element={
+            <ProtectedRoute allowedRoles={["doctor"]}>
+              <DoctorAvailability />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Doctor dashboard */}
+        <Route
+          path="/doctor-dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["doctor"]}>
+              <DoctorDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Patient: browse doctors */}
+        <Route
           path="/doctors"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["patient"]}>
               <Doctors />
             </ProtectedRoute>
           }
         />
 
         <Route
+          path="/doctor-appointments"
+          element={
+            <ProtectedRoute allowedRoles={["doctor"]}>
+              <DoctorAppointments />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Patient: view doctor details */}
+        <Route
           path="/doctor/:doctorId"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["patient"]}>
               <DoctorDetails />
             </ProtectedRoute>
           }
         />
 
+        {/* Patient: view appointments */}
         <Route
           path="/my-appointements"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["patient"]}>
               <MyAppointements />
             </ProtectedRoute>
           }
         />
       </Route>
 
-      {/* Redirect unknown URLs to the home page */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

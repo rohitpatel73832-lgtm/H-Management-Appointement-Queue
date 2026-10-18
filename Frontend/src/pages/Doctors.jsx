@@ -36,8 +36,12 @@ function Doctors() {
   }, [search, specialization]);
 
   useEffect(() => {
+  const timer = setTimeout(() => {
     fetchDoctors();
-  }, [fetchDoctors]);
+  }, 400);
+
+  return () => clearTimeout(timer);
+}, [fetchDoctors]);
 
   const specializations = [
     ...new Set(doctors.map((doctor) => doctor.specialization).filter(Boolean)),
@@ -69,7 +73,6 @@ function Doctors() {
           <form
             onSubmit={(event) => {
               event.preventDefault();
-              fetchDoctors();
             }}
             className="grid gap-4 md:grid-cols-[1fr_220px_auto]"
           >

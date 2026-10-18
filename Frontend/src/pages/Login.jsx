@@ -27,14 +27,36 @@ function Login() {
         password,
       });
 
-      const token = response.data?.data?.token;
+      const data = response.data?.data;
+      const token = data?.token;
+      const user = data?.user;
 
       if (!token) {
         throw new Error("Login succeeded, but no token was returned.");
       }
 
+      if (!user || !user.role) {
+        throw new Error(
+          "The server did not return user details or a role. Please check the login API response."
+        );
+      }
+
+      // Save authentication details.
       localStorage.setItem("token", token);
-      navigate("/dashboard", { replace: true });
+      localStorage.setItem("user", JSON.stringify(user));
+
+      // Navigate according to the user's role.
+      if (user.role === "doctor") {
+        navigate("/doctor-dashboard", { replace: true });
+      } else if (user.role === "admin") {
+        navigate("/admin-dashboard", { replace: true });
+      } else if (user.role === "patient") {
+        navigate("/dashboard", { replace: true });
+      } else {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        throw new Error("Your account has an unsupported role.");
+      }
     } catch (err) {
       setError(
         err.response?.data?.message ||
@@ -71,6 +93,7 @@ function Login() {
               Choose a doctor and an available slot.
             </p>
           </div>
+
           <div className="rounded-2xl border border-slate-200 bg-white p-4">
             <p className="font-semibold text-slate-900">Live queue</p>
             <p className="mt-1 text-sm text-slate-500">
@@ -83,9 +106,11 @@ function Login() {
       <section className="w-full rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-9">
         <div className="mb-7">
           <p className="text-sm font-semibold text-blue-600">WELCOME BACK</p>
+
           <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
             Sign in
           </h2>
+
           <p className="mt-2 text-sm text-slate-500">
             Enter your details to access your account.
           </p>
@@ -108,6 +133,7 @@ function Login() {
             >
               Email address
             </label>
+
             <input
               id="email"
               type="email"
@@ -127,6 +153,7 @@ function Login() {
             >
               Password
             </label>
+
             <input
               id="password"
               type="password"

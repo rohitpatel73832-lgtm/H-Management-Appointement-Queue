@@ -21,10 +21,17 @@ const MyAppointments = () => {
             setError("");
 
             const response = await getMyAppointments();
-            setAppointments(response.data.appointments || []);
-        } catch (error) {
+            const appointmentList = response?.data?.appointments;
+
+            if (!Array.isArray(appointmentList)) {
+                throw new Error("Invalid appointments response from server.");
+            }
+
+            setAppointments(appointmentList);
+        } catch (err) {
             setError(
-                error.response?.data?.message ||
+                err.response?.data?.message ||
+                err.message ||
                 "Failed to fetch appointments."
             );
         } finally {
@@ -47,11 +54,29 @@ const MyAppointments = () => {
             return;
         }
 
+        if (appointment.status?.toLowerCase() !== "booked") {
+            setPaymentError(
+                "Only booked appointments can be paid for."
+            );
+            return;
+        }
+
         try {
             setPayingId(appointment._id);
 
             const response = await createPaymentOrder(appointment._id);
-            const paymentData = response.data;
+            const paymentData = response?.data;
+
+            if (
+                !paymentData?.keyId ||
+                !paymentData?.razorpayOrderId ||
+                paymentData?.amount == null ||
+                !paymentData?.currency
+            ) {
+                throw new Error(
+                    "Invalid payment order response from server."
+                );
+            }
 
             const options = {
                 key: paymentData.keyId,
@@ -72,19 +97,21 @@ const MyAppointments = () => {
                                 razorpayResponse.razorpay_signature
                         });
 
-                        if (verification.success) {
+                        // Backend returns payment status inside ApiResponse.data.
+                        if (verification?.data?.status === "paid") {
                             setSuccessMessage(
                                 "Payment verified successfully."
                             );
+                            setPaymentError("");
                             await fetchAppointments();
                         } else {
                             setPaymentError(
                                 "Payment verification was unsuccessful. Please check your appointment status."
                             );
                         }
-                    } catch (error) {
+                    } catch (err) {
                         setPaymentError(
-                            error.response?.data?.message ||
+                            err.response?.data?.message ||
                             "Payment verification failed. Please check your appointment status."
                         );
                     } finally {
@@ -110,15 +137,18 @@ const MyAppointments = () => {
 
             razorpay.on("payment.failed", (event) => {
                 setPaymentError(
-                    event.error?.description || "Payment failed. Please try again."
+                    event.error?.description ||
+                    "Payment failed. Please try again."
                 );
                 setPayingId(null);
             });
 
             razorpay.open();
-        } catch (error) {
+        } catch (err) {
             setPaymentError(
-                error.response?.data?.message || "Could not start payment."
+                err.response?.data?.message ||
+                err.message ||
+                "Could not start payment."
             );
             setPayingId(null);
         }
@@ -128,6 +158,7 @@ const MyAppointments = () => {
         if (!date) return "Date unavailable";
 
         const parsed = new Date(`${date}T00:00:00`);
+
         return Number.isNaN(parsed.getTime())
             ? date
             : parsed.toLocaleDateString("en-IN", {
@@ -141,12 +172,15 @@ const MyAppointments = () => {
         switch (status?.toLowerCase()) {
             case "booked":
                 return "bg-blue-50 text-blue-700 ring-blue-200";
+
             case "confirmed":
             case "completed":
             case "paid":
                 return "bg-green-50 text-green-700 ring-green-200";
+
             case "cancelled":
                 return "bg-red-50 text-red-700 ring-red-200";
+
             default:
                 return "bg-slate-100 text-slate-700 ring-slate-200";
         }
@@ -172,9 +206,11 @@ const MyAppointments = () => {
                         <p className="text-sm font-semibold uppercase tracking-wider text-blue-600">
                             Your healthcare
                         </p>
+
                         <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
                             My appointments
                         </h1>
+
                         <p className="mt-2 text-slate-500">
                             Review your bookings and manage consultation payments.
                         </p>
@@ -192,6 +228,7 @@ const MyAppointments = () => {
                 {error && (
                     <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
                         <p>{error}</p>
+
                         <button
                             type="button"
                             onClick={fetchAppointments}
@@ -203,13 +240,19 @@ const MyAppointments = () => {
                 )}
 
                 {paymentError && (
-                    <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                    <div
+                        role="alert"
+                        className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+                    >
                         {paymentError}
                     </div>
                 )}
 
                 {successMessage && (
-                    <div className="mb-4 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+                    <div
+                        role="status"
+                        className="mb-4 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800"
+                    >
                         {successMessage}
                     </div>
                 )}
@@ -219,12 +262,15 @@ const MyAppointments = () => {
                         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-3xl text-blue-600">
                             <span aria-hidden="true">▦</span>
                         </div>
+
                         <h2 className="mt-5 text-xl font-bold text-slate-900">
                             No appointments yet
                         </h2>
+
                         <p className="mx-auto mt-2 max-w-md text-slate-500">
                             Browse available doctors and book a consultation that suits your schedule.
                         </p>
+
                         <Link
                             to="/doctors"
                             className="mt-6 inline-flex rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-blue-700"
@@ -238,6 +284,14 @@ const MyAppointments = () => {
                     {appointments.map((appointment) => {
                         const doctor = appointment.doctor;
                         const isPaying = payingId === appointment._id;
+                        const canPay =
+                            appointment.status?.toLowerCase() === "booked";
+
+                        const doctorName = doctor?.user?.name || "Doctor";
+                        const displayDoctorName =
+                            doctorName.toLowerCase().startsWith("dr.")
+                                ? doctorName
+                                : `Dr. ${doctorName}`;
 
                         return (
                             <article
@@ -248,17 +302,20 @@ const MyAppointments = () => {
                                     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
                                         <div className="flex items-start gap-4">
                                             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-xl font-bold text-blue-700">
-                                                {doctor?.user?.name?.charAt(0)?.toUpperCase() || "D"}
+                                                {doctorName.charAt(0).toUpperCase()}
                                             </div>
 
-                                            <div>
-                                                <h2 className="text-lg font-bold text-slate-900">
-                                                    Dr. {doctor?.user?.name || "Doctor"}
+                                            <div className="min-w-0">
+                                                <h2 className="break-words text-lg font-bold text-slate-900">
+                                                    {displayDoctorName}
                                                 </h2>
+
                                                 <p className="mt-1 text-sm font-medium text-blue-700">
-                                                    {doctor?.specialization || "Specialization unavailable"}
+                                                    {doctor?.specialization ||
+                                                        "Specialization unavailable"}
                                                 </p>
-                                                <p className="mt-2 text-xs text-slate-400">
+
+                                                <p className="mt-2 break-all text-xs text-slate-400">
                                                     Booking ID: {appointment._id}
                                                 </p>
                                             </div>
@@ -277,6 +334,7 @@ const MyAppointments = () => {
                                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                                             Appointment date
                                         </p>
+
                                         <p className="mt-2 font-semibold text-slate-900">
                                             {formatDate(appointment.date)}
                                         </p>
@@ -286,8 +344,9 @@ const MyAppointments = () => {
                                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                                             Time slot
                                         </p>
+
                                         <p className="mt-2 font-semibold text-slate-900">
-                                            {appointment.startTime} – {appointment.endTime}
+                                            {appointment.startTime || "--:--"} – {appointment.endTime || "--:--"}
                                         </p>
                                     </div>
 
@@ -295,8 +354,11 @@ const MyAppointments = () => {
                                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                                             Consultation fee
                                         </p>
+
                                         <p className="mt-2 text-xl font-bold text-slate-900">
-                                            ₹{doctor?.consultationFee ?? "—"}
+                                            {doctor?.consultationFee != null
+                                                ? `₹${doctor.consultationFee}`
+                                                : "Not listed"}
                                         </p>
                                     </div>
                                 </div>
@@ -306,16 +368,18 @@ const MyAppointments = () => {
                                         Keep your booking details handy before your visit.
                                     </p>
 
-                                    <button
-                                        type="button"
-                                        onClick={() => handlePayment(appointment)}
-                                        disabled={payingId !== null}
-                                        className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                                    >
-                                        {isPaying
-                                            ? "Processing..."
-                                            : `Pay ₹${doctor?.consultationFee ?? ""}`}
-                                    </button>
+                                    {canPay && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handlePayment(appointment)}
+                                            disabled={payingId !== null}
+                                            className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            {isPaying
+                                                ? "Processing..."
+                                                : `Pay ₹${doctor?.consultationFee ?? ""}`}
+                                        </button>
+                                    )}
                                 </div>
                             </article>
                         );

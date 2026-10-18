@@ -206,7 +206,102 @@ const getMyAppointments = asyncHandler(async (req, res) => {
     return res.status(200).json(response);
 });
 
+const getDoctorAppointments = asyncHandler(async (req, res) => {
+    // Find the doctor profile linked to the logged-in user
+    const doctor = await Doctor.findOne({
+        user: req.userId
+    });
+
+    if (!doctor) {
+        throw new ApiError(
+            404,
+            "Doctor profile not found"
+        );
+    }
+
+    // Fetch appointments belonging only to this doctor
+    const appointments = await Appointment.find({
+        doctor: doctor._id
+    })
+        .populate({
+            path: "patient",
+            select: "name email"
+        })
+        .sort({
+            date: 1,
+            startTime: 1
+        });
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            { appointments },
+            "Doctor appointments fetched successfully"
+        )
+    );
+});
+
+const completeAppointment = asyncHandler(async (req, res) => {
+    const { appointementId } = req.params;
+const appointmentId = appointementId;
+//     console.log("Route params:", req.params);
+// console.log("Appointment ID:", appointmentId);
+
+    if (!appointmentId) {
+        throw new ApiError(400, "Appointment ID is required");
+    }
+
+    // Find the doctor profile of the logged-in user
+    const doctor = await Doctor.findOne({
+        user: req.userId
+    });
+
+    if (!doctor) {
+        throw new ApiError(404, "Doctor profile not found");
+    }
+
+    // Find only an appointment belonging to this doctor
+    const appointment = await Appointment.findOne({
+        _id: appointmentId,
+        doctor: doctor._id
+    });
+
+    if (!appointment) {
+        throw new ApiError(
+            404,
+            "Appointment not found for this doctor"
+        );
+    }
+
+    // Only booked appointments can be completed
+    if (appointment.status !== "booked") {
+        throw new ApiError(
+            400,
+            `Cannot complete an appointment with status "${appointment.status}"`
+        );
+    }
+
+    appointment.status = "completed";
+    await appointment.save();
+
+    // Clear cached appointment lists
+    await clearAppointmentCaches({
+        patientId: String(appointment.patient),
+        doctorId: String(doctor._id)
+    });
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            { appointment },
+            "Appointment marked as completed successfully"
+        )
+    );
+});
+
 export {
     createAppointment,
-    getMyAppointments
+    getMyAppointments,
+    getDoctorAppointments,
+    completeAppointment
 };
