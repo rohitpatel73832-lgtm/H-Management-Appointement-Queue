@@ -4,10 +4,13 @@ import Doctor from "../models/doctor.models.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
 import User from "../models/user.models.js";
+import mongoose from "mongoose";
+
 import {
     clearDoctorListCache,
     getCache,
-    setCache
+    setCache,
+    deleteCache
 } from "../services/redis.service.js";
 
 // Create Doctor Profile
@@ -122,7 +125,6 @@ const updateDoctorProfile = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Doctor profile not found");
     }
 
-    // Update only fields supplied in the request
     if (specialization !== undefined) {
         if (
             typeof specialization !== "string" ||
@@ -200,7 +202,7 @@ const updateDoctorProfile = asyncHandler(async (req, res) => {
     await clearDoctorListCache();
 
     const cacheKey = `hmanage:doctors:profile:${doctor._id}`;
-    await setCache(cacheKey, null, 1).catch(() => {});
+    await deleteCache(cacheKey);
 
     const updatedDoctor = await Doctor.findById(doctor._id)
         .populate("user", "name email");
@@ -214,7 +216,7 @@ const updateDoctorProfile = asyncHandler(async (req, res) => {
     );
 });
 
-// Get All Doctors + Search
+// Get All Active Doctors + Search
 const getAllDoctors = asyncHandler(async (req, res) => {
     const { specialization, search } = req.query;
 
@@ -222,7 +224,9 @@ const getAllDoctors = asyncHandler(async (req, res) => {
         .trim()
         .toLowerCase();
 
-    const normalizedSearch = (search || "").trim().toLowerCase();
+    const normalizedSearch = (search || "")
+        .trim()
+        .toLowerCase();
 
     const cacheKey =
         `hmanage:doctors:list:` +
@@ -238,19 +242,21 @@ const getAllDoctors = asyncHandler(async (req, res) => {
 
     console.log("Doctor list cache MISS");
 
-    const filter = {};
+    const filter = {
+        isActive: { $ne: false }
+    };
 
-    if (specialization) {
+    if (normalizedSpecialization) {
         filter.specialization = {
-            $regex: specialization,
+            $regex: normalizedSpecialization,
             $options: "i"
         };
     }
 
-    if (search) {
+    if (normalizedSearch) {
         const users = await User.find({
             name: {
-                $regex: search,
+                $regex: normalizedSearch,
                 $options: "i"
             }
         }).select("_id");
@@ -274,23 +280,35 @@ const getAllDoctors = asyncHandler(async (req, res) => {
     return res.status(200).json(response);
 });
 
-// Get Single Doctor + Cache
+// Get Single Active Doctor + Cache
 const getDoctorById = asyncHandler(async (req, res) => {
     const { doctorId } = req.params;
+
+    if (!mongoose.isValidObjectId(doctorId)) {
+        throw new ApiError(400, "Invalid doctor ID");
+    }
 
     const cacheKey = `hmanage:doctors:profile:${doctorId}`;
 
     const cachedDoctor = await getCache(cacheKey);
 
     if (cachedDoctor !== null) {
+        const doctor = cachedDoctor?.data?.doctor;
+
+        if (!doctor || doctor.isActive === false) {
+            throw new ApiError(404, "Doctor not found");
+        }
+
         console.log("Doctor profile cache HIT");
         return res.status(200).json(cachedDoctor);
     }
 
     console.log("Doctor profile cache MISS");
 
-    const doctor = await Doctor.findById(doctorId)
-        .populate("user", "name email");
+    const doctor = await Doctor.findOne({
+        _id: doctorId,
+        isActive: { $ne: false }
+    }).populate("user", "name email");
 
     if (!doctor) {
         throw new ApiError(404, "Doctor not found");

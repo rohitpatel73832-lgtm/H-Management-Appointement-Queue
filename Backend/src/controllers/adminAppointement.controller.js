@@ -191,14 +191,22 @@ const cancelAppointmentByAdmin = asyncHandler(async (req, res) => {
 const getPlatformStats = asyncHandler(async (req, res) => {
     const [
         totalUsers,
+        totalPatients,
         totalDoctors,
+        totalAdmins,
         totalAppointments,
         appointmentStatusCounts,
-        totalPayments
+        totalPayments,
+        paidPayments,
+        totalRevenue
     ] = await Promise.all([
         User.countDocuments(),
 
-        Doctor.countDocuments(),
+        User.countDocuments({ role: "patient" }),
+
+        User.countDocuments({ role: "doctor" }),
+
+        User.countDocuments({ role: "admin" }),
 
         Appointment.countDocuments(),
 
@@ -211,24 +219,56 @@ const getPlatformStats = asyncHandler(async (req, res) => {
             }
         ]),
 
-        Payment.countDocuments()
+        Payment.countDocuments(),
+
+        Payment.countDocuments({ status: "paid" }),
+
+        Payment.aggregate([
+            {
+                $match: {
+                    status: "paid"
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    revenue: { $sum: "$amount" }
+                }
+            }
+        ])
     ]);
 
-    const appointmentsByStatus = {};
+    const appointmentsByStatus = {
+        booked: 0,
+        completed: 0,
+        cancelled: 0
+    };
 
     for (const item of appointmentStatusCounts) {
-        appointmentsByStatus[item._id || "unknown"] = item.count;
+        appointmentsByStatus[item._id] = item.count;
     }
+
+    const revenue = totalRevenue[0]?.revenue || 0;
 
     return res.status(200).json(
         new ApiResponse(
             200,
             {
-                totalUsers,
-                totalDoctors,
-                totalAppointments,
-                totalPayments,
-                appointmentsByStatus
+                users: {
+                    total: totalUsers,
+                    patients: totalPatients,
+                    doctors: totalDoctors,
+                    admins: totalAdmins
+                },
+                appointments: {
+                    total: totalAppointments,
+                    byStatus: appointmentsByStatus
+                },
+                payments: {
+                    total: totalPayments,
+                    paid: paidPayments
+                },
+                revenue
             },
             "Platform statistics fetched successfully"
         )

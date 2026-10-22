@@ -1,9 +1,14 @@
+
 import mongoose from "mongoose";
-import User  from "../models/user.models.js";
+import User from "../models/user.models.js";
 import Doctor from "../models/doctor.models.js";
 import { ApiError } from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/AsyncHandler.js";
+import {
+    clearDoctorListCache,
+    deleteCache
+} from "../services/redis.service.js";
 
 // GET /api/admin/users
 const getAllUsers = asyncHandler(async (req, res) => {
@@ -60,7 +65,6 @@ const getAllUsers = asyncHandler(async (req, res) => {
     );
 });
 
-
 // GET /api/admin/doctors
 const getAllDoctors = asyncHandler(async (req, res) => {
     const { search, page = 1, limit = 10 } = req.query;
@@ -106,13 +110,10 @@ const getAllDoctors = asyncHandler(async (req, res) => {
     );
 });
 
-
 // PATCH /api/admin/doctors/:id/status
 const updateDoctorStatus = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { isActive } = req.body;
-//     console.log("isActive value:", isActive);
-// console.log("isActive type:", typeof isActive);
 
     if (!mongoose.isValidObjectId(id)) {
         throw new ApiError(400, "Invalid doctor ID");
@@ -130,6 +131,13 @@ const updateDoctorStatus = asyncHandler(async (req, res) => {
 
     doctor.isActive = isActive;
     await doctor.save();
+
+    // Clear cached doctor lists
+    await clearDoctorListCache();
+
+    // Delete this doctor's cached profile
+    const cacheKey = `hmanage:doctors:profile:${doctor._id}`;
+    await deleteCache(cacheKey);
 
     return res.status(200).json(
         new ApiResponse(

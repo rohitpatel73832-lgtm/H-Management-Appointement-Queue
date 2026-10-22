@@ -1,3 +1,4 @@
+
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import Home from "./pages/Home";
@@ -15,12 +16,19 @@ import DoctorAppointments from "./pages/DoctorAppointments";
 import DoctorQueue from "./pages/DoctorQueue";
 import DoctorProfile from "./pages/DoctorProfile";
 
+import AdminDashboard from "./pages/AdminDashboard";
+import AdminUsers from "./pages/AdminUsers";
+import AdminDoctors from "./pages/AdminDoctors";
+import AdminAppointments from "./pages/AdminAppointments";
+
 function App() {
   return (
     <Routes>
+      {/* Home */}
       <Route path="/" element={<Home />} />
 
       <Route element={<AppLayout />}>
+        {/* Authentication */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
@@ -30,25 +38,6 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={["patient"]}>
               <Dashboard />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/doctor-availability"
-          element={
-            <ProtectedRoute allowedRoles={["doctor"]}>
-              <DoctorAvailability />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* Doctor dashboard */}
-        <Route
-          path="/doctor-dashboard"
-          element={
-            <ProtectedRoute allowedRoles={["doctor"]}>
-              <DoctorDashboard />
             </ProtectedRoute>
           }
         />
@@ -63,38 +52,12 @@ function App() {
           }
         />
 
-        <Route
-          path="/doctor-appointments"
-          element={
-            <ProtectedRoute allowedRoles={["doctor"]}>
-              <DoctorAppointments />
-            </ProtectedRoute>
-          }
-        />
-
         {/* Patient: view doctor details */}
         <Route
           path="/doctor/:doctorId"
           element={
             <ProtectedRoute allowedRoles={["patient"]}>
               <DoctorDetails />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/doctor-queue"
-          element={
-            <ProtectedRoute allowedRoles={["doctor"]}>
-              <DoctorQueue />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/doctor-profile"
-          element={
-            <ProtectedRoute allowedRoles={["doctor"]}>
-              <DoctorProfile />
             </ProtectedRoute>
           }
         />
@@ -108,8 +71,99 @@ function App() {
             </ProtectedRoute>
           }
         />
+
+        {/* Doctor dashboard */}
+        <Route
+          path="/doctor-dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["doctor"]}>
+              <DoctorDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Doctor availability */}
+        <Route
+          path="/doctor-availability"
+          element={
+            <ProtectedRoute allowedRoles={["doctor"]}>
+              <DoctorAvailability />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Doctor appointments */}
+        <Route
+          path="/doctor-appointments"
+          element={
+            <ProtectedRoute allowedRoles={["doctor"]}>
+              <DoctorAppointments />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Doctor queue */}
+        <Route
+          path="/doctor-queue"
+          element={
+            <ProtectedRoute allowedRoles={["doctor"]}>
+              <DoctorQueue />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Doctor profile */}
+        <Route
+          path="/doctor-profile"
+          element={
+            <ProtectedRoute allowedRoles={["doctor"]}>
+              <DoctorProfile />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Admin dashboard */}
+        <Route
+          path="/admin-dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Admin user management */}
+        <Route
+          path="/admin-users"
+          element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminUsers />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Admin doctor management */}
+        <Route
+          path="/admin-doctors"
+          element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminDoctors />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Admin appointment management */}
+        <Route
+          path="/admin-appointments"
+          element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminAppointments />
+            </ProtectedRoute>
+          }
+        />
       </Route>
 
+      {/* Redirect unknown routes */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

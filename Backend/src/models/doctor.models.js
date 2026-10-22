@@ -43,6 +43,12 @@ const doctorSchema = new mongoose.Schema(
             type: String,
             required: [true, "Clinic address is required"],
             trim: true
+        },
+
+        // Admin can activate or deactivate a doctor
+        isActive: {
+            type: Boolean,
+            default: true
         }
     },
     {
