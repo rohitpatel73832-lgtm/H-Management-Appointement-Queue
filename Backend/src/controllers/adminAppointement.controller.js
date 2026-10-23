@@ -9,7 +9,7 @@ import Payment from "../models/payment.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/AsyncHandler.js";
-
+import { clearAppointmentCache } from "../services/appointementCache.service.js";
 
 const getAllAppointments = asyncHandler(async (req, res) => {
     let {
@@ -135,52 +135,79 @@ const getAllAppointments = asyncHandler(async (req, res) => {
 const cancelAppointmentByAdmin = asyncHandler(async (req, res) => {
     const { id } = req.params;
 
-    // Validate appointment ID
     if (!mongoose.isValidObjectId(id)) {
         throw new ApiError(400, "Invalid appointment ID");
     }
 
-    // Find appointment
-    const appointment = await Appointment.findById(id);
+    const session = await mongoose.startSession();
 
-    if (!appointment) {
-        throw new ApiError(404, "Appointment not found");
+    let cancelledAppointment;
+    let paymentStatus = "no_payment";
+
+    try {
+        await session.withTransaction(async () => {
+            const appointment = await Appointment.findById(id).session(session);
+
+            if (!appointment) {
+                throw new ApiError(404, "Appointment not found");
+            }
+
+            if (["cancelled", "completed"].includes(appointment.status)) {
+                throw new ApiError(
+                    400,
+                    `Cannot cancel an appointment with status: ${appointment.status}`
+                );
+            }
+
+            const payment = await Payment.findOne({
+                appointment: appointment._id
+            }).session(session);
+
+            if (payment?.status === "paid") {
+                throw new ApiError(
+                    409,
+                    "This appointment has a successful payment. Process a verified refund before cancellation."
+                );
+            }
+
+            const queue = await Queue.findOne({
+                appointment: appointment._id
+            }).session(session);
+
+            if (queue && queue.status !== "waiting") {
+                throw new ApiError(
+                    400,
+                    `Cannot cancel appointment because queue status is "${queue.status}"`
+                );
+            }
+
+            appointment.status = "cancelled";
+            await appointment.save({ session });
+
+            if (queue) {
+                queue.status = "cancelled";
+                await queue.save({ session });
+            }
+
+            cancelledAppointment = appointment;
+            paymentStatus = payment?.status || "no_payment";
+        });
+    } finally {
+        await session.endSession();
     }
 
-    // Prevent repeated or invalid cancellation
-    if (["cancelled", "completed"].includes(appointment.status)) {
-        throw new ApiError(
-            400,
-            `Cannot cancel an appointment with status: ${appointment.status}`
-        );
-    }
-
-    // Check associated payment
-    const payment = await Payment.findOne({
-        appointment: appointment._id
+    await clearAppointmentCaches({
+        patientId: String(cancelledAppointment.patient),
+        doctorId: String(cancelledAppointment.doctor)
     });
-
-    // Do not cancel a successfully paid appointment
-    // until a real refund has been processed and verified.
-    if (payment?.status === "paid") {
-        throw new ApiError(
-            409,
-            "This appointment has a successful payment. Process a verified refund before cancellation."
-        );
-    }
-
-    // Pending and failed payments do not require a refund.
-    // A previously refunded payment must not be refunded again.
-    appointment.status = "cancelled";
-    await appointment.save();
 
     return res.status(200).json(
         new ApiResponse(
             200,
             {
-                appointmentId: appointment._id,
-                status: appointment.status,
-                paymentStatus: payment?.status || "no_payment"
+                appointmentId: cancelledAppointment._id,
+                status: cancelledAppointment.status,
+                paymentStatus
             },
             "Appointment cancelled successfully"
         )
