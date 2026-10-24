@@ -12,9 +12,7 @@ import {
   requestRefund,
 } from "../services/paymentApi";
 
-import {
-  generatePreConsultationSummary,
-} from "../services/aiApi";
+import { generatePreConsultationSummary } from "../services/aiApi";
 
 const MyAppointments = () => {
   const [appointments, setAppointments] = useState([]);
@@ -29,8 +27,7 @@ const MyAppointments = () => {
 
   // AI consultation question generator
   const [symptoms, setSymptoms] = useState("");
-  const [consultationQuestions, setConsultationQuestions] =
-    useState(null);
+  const [consultationQuestions, setConsultationQuestions] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState("");
 
@@ -49,7 +46,7 @@ const MyAppointments = () => {
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          "Unable to load your appointments. Please try again."
+          "Unable to load your appointments. Please try again.",
       );
     } finally {
       setLoading(false);
@@ -83,8 +80,7 @@ const MyAppointments = () => {
       setAiError("");
       setConsultationQuestions(null);
 
-      const response =
-        await generatePreConsultationSummary(cleanedSymptoms);
+      const response = await generatePreConsultationSummary(cleanedSymptoms);
 
       // Expected API response:
       // { statusCode, data: { questionsForDoctor, disclaimer } }
@@ -97,12 +93,10 @@ const MyAppointments = () => {
         result.questionsForDoctor.length > 5 ||
         !result.questionsForDoctor.every(
           (question) =>
-            typeof question === "string" && question.trim().length > 0
+            typeof question === "string" && question.trim().length > 0,
         )
       ) {
-        throw new Error(
-          "The AI service returned an invalid response."
-        );
+        throw new Error("The AI service returned an invalid response.");
       }
 
       setConsultationQuestions(result);
@@ -110,7 +104,7 @@ const MyAppointments = () => {
       setAiError(
         err.response?.data?.message ||
           err.message ||
-          "Unable to generate questions. Please try again."
+          "Unable to generate questions. Please try again.",
       );
     } finally {
       setAiLoading(false);
@@ -122,7 +116,7 @@ const MyAppointments = () => {
   // -----------------------------
   const handleCancelAppointment = async (appointmentId) => {
     const confirmed = window.confirm(
-      "Are you sure you want to cancel this appointment?"
+      "Are you sure you want to cancel this appointment?",
     );
 
     if (!confirmed) return;
@@ -136,7 +130,7 @@ const MyAppointments = () => {
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          "Unable to cancel the appointment. Please try again."
+          "Unable to cancel the appointment. Please try again.",
       );
     } finally {
       setCancelLoadingId(null);
@@ -151,12 +145,9 @@ const MyAppointments = () => {
       setProcessingId(appointment._id);
       setError("");
 
-      const orderResponse = await createPaymentOrder(
-        appointment._id
-      );
+      const orderResponse = await createPaymentOrder(appointment._id);
 
-      const orderData =
-        orderResponse?.data?.data || orderResponse?.data;
+      const orderData = orderResponse?.data?.data || orderResponse?.data;
 
       if (!orderData) {
         throw new Error("Unable to create the payment order.");
@@ -164,17 +155,17 @@ const MyAppointments = () => {
 
       if (!window.Razorpay) {
         throw new Error(
-          "Payment gateway is not available. Please refresh the page."
+          "Payment gateway is not available. Please refresh the page.",
         );
       }
 
       const options = {
-        key: orderData.key,
+        key: orderData.keyId,
         amount: orderData.amount,
         currency: orderData.currency || "INR",
         name: "H-Manage",
         description: "Doctor Appointment Payment",
-        order_id: orderData.orderId || orderData.id,
+        order_id: orderData.razorpayOrderId,
 
         handler: async (paymentResponse) => {
           try {
@@ -188,7 +179,7 @@ const MyAppointments = () => {
           } catch (err) {
             setError(
               err.response?.data?.message ||
-                "Payment verification failed. If money was deducted, please contact support."
+                "Payment verification failed. If money was deducted, please contact support.",
             );
           } finally {
             setProcessingId(null);
@@ -215,8 +206,7 @@ const MyAppointments = () => {
 
       razorpay.on("payment.failed", (response) => {
         setError(
-          response.error?.description ||
-            "Payment failed. Please try again."
+          response.error?.description || "Payment failed. Please try again.",
         );
 
         setProcessingId(null);
@@ -227,7 +217,7 @@ const MyAppointments = () => {
       setError(
         err.response?.data?.message ||
           err.message ||
-          "Unable to start the payment. Please try again."
+          "Unable to start the payment. Please try again.",
       );
 
       setProcessingId(null);
@@ -239,7 +229,7 @@ const MyAppointments = () => {
   // -----------------------------
   const handleRefundRequest = async (appointmentId) => {
     const confirmed = window.confirm(
-      "Do you want to request a refund for this appointment?"
+      "Do you want to request a refund for this appointment?",
     );
 
     if (!confirmed) return;
@@ -253,14 +243,14 @@ const MyAppointments = () => {
       setRefundRequestedIds((previous) =>
         previous.includes(appointmentId)
           ? previous
-          : [...previous, appointmentId]
+          : [...previous, appointmentId],
       );
 
       await fetchAppointments();
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          "Unable to request the refund. Please try again."
+          "Unable to request the refund. Please try again.",
       );
     } finally {
       setRefundLoadingId(null);
@@ -317,25 +307,19 @@ const MyAppointments = () => {
   };
 
   const getRefundStatus = (appointment) =>
-    appointment.refundStatus ||
-    appointment.payment?.refundStatus ||
-    "";
+    appointment.refundStatus || appointment.payment?.refundStatus || "";
 
   const isRefundRequested = (appointment) => {
     const refundStatus = getRefundStatus(appointment)?.toLowerCase();
 
     return (
       refundRequestedIds.includes(appointment._id) ||
-      ["pending", "processed", "completed", "refunded"].includes(
-        refundStatus
-      )
+      ["pending", "processed", "completed", "refunded"].includes(refundStatus)
     );
   };
 
   const getDoctorName = (appointment) =>
-    appointment.doctor?.user?.name ||
-    appointment.doctor?.name ||
-    "Doctor";
+    appointment.doctor?.user?.name || appointment.doctor?.name || "Doctor";
 
   const getSpecialization = (appointment) =>
     appointment.doctor?.specialization ||
@@ -349,12 +333,9 @@ const MyAppointments = () => {
     appointment.slot?.startTime;
 
   const getPaymentStatus = (appointment) =>
-    appointment.paymentStatus ||
-    appointment.payment?.status ||
-    "pending";
+    appointment.paymentStatus || appointment.payment?.status || "pending";
 
-  const getAppointmentStatus = (appointment) =>
-    appointment.status || "pending";
+  const getAppointmentStatus = (appointment) => appointment.status || "pending";
 
   const canCancelAppointment = (appointment) => {
     const status = getAppointmentStatus(appointment).toLowerCase();
@@ -368,9 +349,7 @@ const MyAppointments = () => {
 
     return (
       !["cancelled", "completed"].includes(status) &&
-      !["paid", "completed", "success", "refunded"].includes(
-        paymentStatus
-      )
+      !["paid", "completed", "success", "refunded"].includes(paymentStatus)
     );
   };
 
@@ -420,8 +399,7 @@ const MyAppointments = () => {
             </h1>
 
             <p className="mt-2 text-sm text-gray-600">
-              Manage your appointments, payments, and consultation
-              preparation.
+              Manage your appointments, payments, and consultation preparation.
             </p>
           </div>
 
@@ -445,9 +423,8 @@ const MyAppointments = () => {
             </h2>
 
             <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
-              Describe the symptoms you are experiencing. AI will
-              suggest questions you can ask your doctor during your
-              consultation.
+              Describe the symptoms you are experiencing. AI will suggest
+              questions you can ask your doctor during your consultation.
             </p>
           </div>
 
@@ -483,9 +460,7 @@ const MyAppointments = () => {
                 disabled={aiLoading || !symptoms.trim()}
                 className="inline-flex items-center justify-center rounded-full bg-[#163031] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#285253] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {aiLoading
-                  ? "Generating questions..."
-                  : "Generate Questions"}
+                {aiLoading ? "Generating questions..." : "Generate Questions"}
               </button>
             </div>
           </form>
@@ -520,17 +495,15 @@ const MyAppointments = () => {
               </h3>
 
               <p className="mt-2 text-sm leading-6 text-gray-600">
-                Use these suggestions to prepare for your consultation.
-                Choose the questions that are relevant to you.
+                Use these suggestions to prepare for your consultation. Choose
+                the questions that are relevant to you.
               </p>
 
               <ol className="mt-4 list-decimal space-y-3 pl-5 text-sm leading-6 text-gray-700">
                 {consultationQuestions.questionsForDoctor.map(
                   (question, index) => (
-                    <li key={`${index}-${question}`}>
-                      {question}
-                    </li>
-                  )
+                    <li key={`${index}-${question}`}>{question}</li>
+                  ),
                 )}
               </ol>
 
@@ -553,9 +526,9 @@ const MyAppointments = () => {
           )}
 
           <p className="mt-4 text-xs leading-5 text-gray-500">
-            This tool helps you prepare questions for your doctor. It
-            does not diagnose conditions or recommend medication.
-            Avoid entering unnecessary personal identifying information.
+            This tool helps you prepare questions for your doctor. It does not
+            diagnose conditions or recommend medication. Avoid entering
+            unnecessary personal identifying information.
           </p>
         </section>
 
@@ -580,9 +553,7 @@ const MyAppointments = () => {
         {/* APPOINTMENT STATISTICS */}
         <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="rounded-2xl border border-[#e5ece8] bg-white p-5 shadow-sm">
-            <p className="text-sm text-gray-500">
-              Total Appointments
-            </p>
+            <p className="text-sm text-gray-500">Total Appointments</p>
 
             <p className="mt-2 text-3xl font-bold text-[#163031]">
               {appointments.length}
@@ -596,8 +567,8 @@ const MyAppointments = () => {
               {
                 appointments.filter((appointment) =>
                   ["pending", "confirmed"].includes(
-                    getAppointmentStatus(appointment).toLowerCase()
-                  )
+                    getAppointmentStatus(appointment).toLowerCase(),
+                  ),
                 ).length
               }
             </p>
@@ -611,7 +582,7 @@ const MyAppointments = () => {
                 appointments.filter(
                   (appointment) =>
                     getAppointmentStatus(appointment).toLowerCase() ===
-                    "completed"
+                    "completed",
                 ).length
               }
             </p>
@@ -659,8 +630,7 @@ const MyAppointments = () => {
           <div className="space-y-5">
             {appointments.map((appointment) => {
               const appointmentId = appointment._id;
-              const appointmentStatus =
-                getAppointmentStatus(appointment);
+              const appointmentStatus = getAppointmentStatus(appointment);
               const paymentStatus = getPaymentStatus(appointment);
               const refundStatus = getRefundStatus(appointment);
 
@@ -684,7 +654,7 @@ const MyAppointments = () => {
                     <div className="flex flex-wrap gap-2">
                       <span
                         className={`rounded-full px-3 py-1 text-xs font-bold capitalize ${getStatusClass(
-                          appointmentStatus
+                          appointmentStatus,
                         )}`}
                       >
                         {appointmentStatus}
@@ -692,7 +662,7 @@ const MyAppointments = () => {
 
                       <span
                         className={`rounded-full px-3 py-1 text-xs font-bold capitalize ${getPaymentStatusClass(
-                          paymentStatus
+                          paymentStatus,
                         )}`}
                       >
                         Payment: {paymentStatus}
@@ -713,9 +683,7 @@ const MyAppointments = () => {
                     </div>
 
                     <div>
-                      <p className="text-xs font-medium text-gray-500">
-                        Time
-                      </p>
+                      <p className="text-xs font-medium text-gray-500">Time</p>
 
                       <p className="mt-1 text-sm font-semibold text-[#163031]">
                         {appointment.time ||
@@ -768,9 +736,7 @@ const MyAppointments = () => {
                     {canCancelAppointment(appointment) && (
                       <button
                         type="button"
-                        onClick={() =>
-                          handleCancelAppointment(appointmentId)
-                        }
+                        onClick={() => handleCancelAppointment(appointmentId)}
                         disabled={cancelLoadingId === appointmentId}
                         className="rounded-full border border-red-200 px-5 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                       >
@@ -783,9 +749,7 @@ const MyAppointments = () => {
                     {canRequestRefund(appointment) && (
                       <button
                         type="button"
-                        onClick={() =>
-                          handleRefundRequest(appointmentId)
-                        }
+                        onClick={() => handleRefundRequest(appointmentId)}
                         disabled={refundLoadingId === appointmentId}
                         className="rounded-full border border-amber-200 bg-amber-50 px-5 py-2.5 text-sm font-semibold text-amber-800 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
                       >

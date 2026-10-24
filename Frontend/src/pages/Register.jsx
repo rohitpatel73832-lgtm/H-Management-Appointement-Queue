@@ -88,9 +88,11 @@ function Register() {
       <section className="w-full rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-9">
         <div className="mb-7">
           <p className="text-sm font-semibold text-blue-600">GET STARTED</p>
+
           <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
             Create account
           </h2>
+
           <p className="mt-2 text-sm text-slate-500">
             Enter your details to get started with H-Manage.
           </p>
@@ -116,9 +118,13 @@ function Register() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label htmlFor="name" className="mb-2 block text-sm font-semibold text-slate-700">
+            <label
+              htmlFor="name"
+              className="mb-2 block text-sm font-semibold text-slate-700"
+            >
               Full name
             </label>
+
             <input
               id="name"
               type="text"
@@ -132,9 +138,13 @@ function Register() {
           </div>
 
           <div>
-            <label htmlFor="email" className="mb-2 block text-sm font-semibold text-slate-700">
+            <label
+              htmlFor="email"
+              className="mb-2 block text-sm font-semibold text-slate-700"
+            >
               Email address
             </label>
+
             <input
               id="email"
               type="email"
@@ -148,9 +158,13 @@ function Register() {
           </div>
 
           <div>
-            <label htmlFor="password" className="mb-2 block text-sm font-semibold text-slate-700">
+            <label
+              htmlFor="password"
+              className="mb-2 block text-sm font-semibold text-slate-700"
+            >
               Password
             </label>
+
             <input
               id="password"
               type="password"
@@ -173,15 +187,27 @@ function Register() {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-slate-600">
-          Already have an account?{" "}
-          <Link
-            to="/login"
-            className="font-semibold text-blue-600 hover:text-blue-700"
-          >
-            Sign in
-          </Link>
-        </p>
+        <div className="mt-6 space-y-3 text-center text-sm text-slate-600">
+          <p>
+            Already have an account?{" "}
+            <Link
+              to="/login"
+              className="font-semibold text-blue-600 hover:text-blue-700"
+            >
+              Sign in
+            </Link>
+          </p>
+
+          <p>
+            Are you a doctor?{" "}
+            <Link
+              to="/register-doctor"
+              className="font-semibold text-blue-600 hover:text-blue-700"
+            >
+              Register as a Doctor
+            </Link>
+          </p>
+        </div>
       </section>
     </div>
   );

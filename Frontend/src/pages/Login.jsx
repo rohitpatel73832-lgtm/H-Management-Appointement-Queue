@@ -175,15 +175,27 @@ function Login() {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-slate-600">
-          Don't have an account?{" "}
-          <Link
-            to="/register"
-            className="font-semibold text-blue-600 hover:text-blue-700"
-          >
-            Create an account
-          </Link>
-        </p>
+        <div className="mt-6 space-y-3 text-center text-sm text-slate-600">
+          <p>
+            Don't have an account?{" "}
+            <Link
+              to="/register"
+              className="font-semibold text-blue-600 hover:text-blue-700"
+            >
+              Register as a Patient
+            </Link>
+          </p>
+
+          <p>
+            Are you a doctor?{" "}
+            <Link
+              to="/register-doctor"
+              className="font-semibold text-blue-600 hover:text-blue-700"
+            >
+              Register as a Doctor
+            </Link>
+          </p>
+        </div>
       </section>
     </div>
   );

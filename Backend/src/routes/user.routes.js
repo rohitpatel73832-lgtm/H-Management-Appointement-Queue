@@ -1,5 +1,5 @@
 import express from "express"
-import { registerUser,loginUser, getCurrentUser, patientDashboard, doctorDashboard, adminDashboard } from "../controllers/user.controller.js";
+import { registerUser,loginUser, getCurrentUser, patientDashboard, doctorDashboard, adminDashboard, registerDoctor } from "../controllers/user.controller.js";
 import { protect } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/role.middleware.js";
 import { loginLimiter, registerLimiter } from "../middlewares/rateLimit.middlewares.js";
@@ -7,6 +7,8 @@ import { loginLimiter, registerLimiter } from "../middlewares/rateLimit.middlewa
 const userRouter = express.Router();
 //  /api/users/register
 userRouter.post('/register',registerLimiter, registerUser);
+//doctor registration
+userRouter.post("/register-doctor", registerLimiter, registerDoctor);
 userRouter.post('/login',loginLimiter, loginUser);
 //auth-test
 userRouter.get('/me',protect, getCurrentUser);

@@ -4,6 +4,7 @@ import ApiResponse from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import { ApiError } from "../utils/ApiError.js";
 import bcrypt from "bcrypt";
+import Doctor from "../models/doctor.models.js";
 
 // Generate JWT token
 const generateToken = (id) => {
@@ -107,6 +108,158 @@ const registerUser = asyncHandler(async (req, res) => {
     );
 });
 
+
+// Register doctor (public registration; admin approval required)
+const registerDoctor = asyncHandler(async (req, res) => {
+    const {
+        name,
+        email,
+        password,
+        specialization,
+        qualification,
+        experience,
+        consultationFee,
+        about,
+        clinicAddress,
+    } = req.body ?? {};
+
+    // Validate required string fields
+    if (
+        typeof name !== "string" ||
+        typeof email !== "string" ||
+        typeof password !== "string" ||
+        typeof specialization !== "string" ||
+        typeof qualification !== "string" ||
+        typeof clinicAddress !== "string"
+    ) {
+        throw new ApiError(
+            400,
+            "Name, email, password, specialization, qualification and clinic address are required"
+        );
+    }
+
+    const cleanName = name.trim();
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanSpecialization = specialization.trim();
+    const cleanQualification = qualification.trim();
+    const cleanClinicAddress = clinicAddress.trim();
+
+    if (
+        !cleanName ||
+        !cleanEmail ||
+        !password.trim() ||
+        !cleanSpecialization ||
+        !cleanQualification ||
+        !cleanClinicAddress
+    ) {
+        throw new ApiError(400, "Please fill in all required fields");
+    }
+
+    // Validate email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(cleanEmail)) {
+        throw new ApiError(400, "Please provide a valid email");
+    }
+
+    // Match the password limits used by your existing registration
+    if (password.length < 8 || password.length > 72) {
+        throw new ApiError(
+            400,
+            "Password must be between 8 and 72 characters"
+        );
+    }
+
+    // Validate numeric fields
+    const doctorExperience = Number(experience);
+    const doctorFee = Number(consultationFee);
+
+    if (
+        experience === undefined ||
+        experience === null ||
+        experience === "" ||
+        !Number.isFinite(doctorExperience) ||
+        doctorExperience < 0
+    ) {
+        throw new ApiError(
+            400,
+            "Experience must be a valid non-negative number"
+        );
+    }
+
+    if (
+        consultationFee === undefined ||
+        consultationFee === null ||
+        consultationFee === "" ||
+        !Number.isFinite(doctorFee) ||
+        doctorFee < 0
+    ) {
+        throw new ApiError(
+            400,
+            "Consultation fee must be a valid non-negative number"
+        );
+    }
+
+    // Check whether this email is already registered
+    const userExists = await User.findOne({
+        email: cleanEmail,
+    });
+
+    if (userExists) {
+        throw new ApiError(409, "User already exists");
+    }
+
+    // Create the account with the doctor role assigned by the server
+    const user = await User.create({
+        name: cleanName,
+        email: cleanEmail,
+        password,
+        role: "doctor",
+    });
+
+    try {
+        // Create the doctor's profile
+        const doctor = await Doctor.create({
+            user: user._id,
+            specialization: cleanSpecialization,
+            qualification: cleanQualification,
+            experience: doctorExperience,
+            consultationFee: doctorFee,
+            about:
+                typeof about === "string"
+                    ? about.trim()
+                    : "",
+            clinicAddress: cleanClinicAddress,
+            approvalStatus: "pending",
+            isActive: true,
+        });
+
+        return res.status(201).json(
+            new ApiResponse(
+                201,
+                {
+                    user: {
+                        _id: user._id,
+                        name: user.name,
+                        email: user.email,
+                        role: user.role,
+                    },
+                    doctor: {
+                        _id: doctor._id,
+                        specialization: doctor.specialization,
+                        qualification: doctor.qualification,
+                        approvalStatus: doctor.approvalStatus,
+                    },
+                },
+                "Doctor registration submitted successfully. Please wait for admin approval."
+            )
+        );
+    } catch (error) {
+        // Avoid leaving an account without its doctor profile
+        await User.deleteOne({ _id: user._id });
+        throw error;
+    }
+});
 
 // Login user
 const loginUser = asyncHandler(async (req, res) => {
@@ -254,6 +407,7 @@ const adminDashboard = asyncHandler(async (req, res) => {
 
 export {
     registerUser,
+    registerDoctor,
     loginUser,
     getCurrentUser,
     patientDashboard,

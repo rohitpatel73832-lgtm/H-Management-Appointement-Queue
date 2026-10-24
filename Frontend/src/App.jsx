@@ -20,6 +20,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import AdminUsers from "./pages/AdminUsers";
 import AdminDoctors from "./pages/AdminDoctors";
 import AdminAppointments from "./pages/AdminAppointments";
+import DoctorRegisters from "./pages/DoctorRegisters";
 
 function App() {
   return (
@@ -162,6 +163,7 @@ function App() {
           }
         />
       </Route>
+      <Route path="/register-doctor" element={<DoctorRegisters />} />
 
       {/* Redirect unknown routes */}
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,3 +1,4 @@
+
 import mongoose from "mongoose";
 import asyncHandler from "../utils/AsyncHandler.js";
 import ApiResponse from "../utils/ApiResponse.js";
@@ -15,6 +16,7 @@ import {
 } from "../services/appointementCache.service.js";
 import Payment from "../models/payment.model.js";
 
+
 const createAppointment = asyncHandler(async (req, res) => {
   const { doctorId, date, startTime, endTime } = req.body;
 
@@ -25,10 +27,22 @@ const createAppointment = asyncHandler(async (req, res) => {
     );
   }
 
-  const doctor = await Doctor.findById(doctorId);
+  if (!mongoose.isValidObjectId(doctorId)) {
+    throw new ApiError(400, "Invalid doctor ID");
+  }
+
+  // Only approved and active doctors can receive appointments
+  const doctor = await Doctor.findOne({
+    _id: doctorId,
+    approvalStatus: "approved",
+    isActive: true,
+  });
 
   if (!doctor) {
-    throw new ApiError(404, "Doctor not found");
+    throw new ApiError(
+      403,
+      "This doctor is not approved or is currently unavailable for booking"
+    );
   }
 
   const selectedDate = new Date(date);
@@ -49,6 +63,7 @@ const createAppointment = asyncHandler(async (req, res) => {
 
   const dayOfWeek = days[selectedDate.getDay()];
 
+  // Check doctor's availability
   const availability = await Availability.find({
     doctor: doctorId,
     dayOfWeek,
@@ -58,13 +73,20 @@ const createAppointment = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Doctor is not available on this day");
   }
 
+  // Validate selected slot
   let validSlot = false;
 
   for (const schedule of availability) {
-    const slots = generateSlots(schedule.startTime, schedule.endTime, 30);
+    const slots = generateSlots(
+      schedule.startTime,
+      schedule.endTime,
+      30
+    );
 
     const slotExists = slots.some(
-      (slot) => slot.startTime === startTime && slot.endTime === endTime
+      (slot) =>
+        slot.startTime === startTime &&
+        slot.endTime === endTime
     );
 
     if (slotExists) {
@@ -77,6 +99,7 @@ const createAppointment = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Selected slot is not available");
   }
 
+  // Check whether the slot is already booked
   const existingAppointment = await Appointment.findOne({
     doctor: doctorId,
     date,
@@ -89,73 +112,87 @@ const createAppointment = asyncHandler(async (req, res) => {
     throw new ApiError(400, "This slot is already booked");
   }
 
+  const session = await mongoose.startSession();
+
   let appointment;
-
-  try {
-    appointment = await Appointment.create({
-      patient: req.userId,
-      doctor: doctorId,
-      date,
-      startTime,
-      endTime,
-      status: "booked",
-    });
-  } catch (error) {
-    if (error.code === 11000) {
-      throw new ApiError(400, "This slot is already booked");
-    }
-
-    throw error;
-  }
-
-  const lastQueue = await Queue.findOne({
-    doctor: doctorId,
-    date,
-  }).sort({
-    tokenNumber: -1,
-  });
-
-  const nextToken = lastQueue ? lastQueue.tokenNumber + 1 : 1;
-
   let queue;
 
   try {
-    queue = await Queue.create({
-      appointment: appointment._id,
-      doctor: doctorId,
-      patient: req.userId,
-      date,
-      tokenNumber: nextToken,
-      status: "waiting",
+    await session.withTransaction(async () => {
+      // Create appointment inside the transaction
+      const createdAppointments = await Appointment.create(
+        [
+          {
+            patient: req.userId,
+            doctor: doctorId,
+            date,
+            startTime,
+            endTime,
+            status: "booked",
+          },
+        ],
+        { session }
+      );
+
+      appointment = createdAppointments[0];
+
+      // Find the latest queue token inside the transaction
+      const lastQueue = await Queue.findOne({
+        doctor: doctorId,
+        date,
+      })
+        .sort({ tokenNumber: -1 })
+        .session(session);
+
+      const nextToken = lastQueue
+        ? lastQueue.tokenNumber + 1
+        : 1;
+
+      // Create queue entry inside the same transaction
+      const createdQueues = await Queue.create(
+        [
+          {
+            appointment: appointment._id,
+            doctor: doctorId,
+            patient: req.userId,
+            date,
+            tokenNumber: nextToken,
+            status: "waiting",
+          },
+        ],
+        { session }
+      );
+
+      queue = createdQueues[0];
     });
   } catch (error) {
+    // The transaction rolls back both writes if either operation fails
     if (error.code === 11000) {
       throw new ApiError(
-        400,
-        "Failed to generate a unique token. Please try again."
+        409,
+        "This slot or queue token is already in use. Please try again."
       );
     }
 
     throw error;
+  } finally {
+    await session.endSession();
   }
 
-  // Invalidate cached appointment lists
+  // Clear cached appointment lists after the transaction commits
   await clearAppointmentCaches({
     patientId: String(req.userId),
     doctorId: String(doctorId),
   });
 
-  return res
-    .status(201)
-    .json(
-      new ApiResponse(
-        201,
-        { appointment, queue },
-        "Appointment booked successfully"
-      )
-    );
+  return res.status(201).json(
+    new ApiResponse(
+      201,
+      { appointment, queue },
+      "Appointment booked successfully"
+    )
+  );
 });
-
 
 const getMyAppointments = asyncHandler(async (req, res) => {
   const cacheKey = patientAppointmentKey(String(req.userId));
@@ -184,7 +221,9 @@ const getMyAppointments = asyncHandler(async (req, res) => {
       return res.status(200).json(cachedAppointments);
     }
 
-    console.log("Cached appointments missing payment status; refreshing");
+    console.log(
+      "Cached appointments missing payment status; refreshing"
+    );
   }
 
   console.log("Patient appointment cache MISS or STALE");
@@ -233,7 +272,6 @@ const getMyAppointments = asyncHandler(async (req, res) => {
   return res.status(200).json(response);
 });
 
-
 const getDoctorAppointments = asyncHandler(async (req, res) => {
   // Find the doctor profile linked to the logged-in user
   const doctor = await Doctor.findOne({
@@ -257,15 +295,13 @@ const getDoctorAppointments = asyncHandler(async (req, res) => {
       startTime: 1,
     });
 
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        { appointments },
-        "Doctor appointments fetched successfully"
-      )
-    );
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      { appointments },
+      "Doctor appointments fetched successfully"
+    )
+  );
 });
 
 const completeAppointment = asyncHandler(async (req, res) => {
@@ -297,7 +333,10 @@ const completeAppointment = asyncHandler(async (req, res) => {
       }).session(session);
 
       if (!appointment) {
-        throw new ApiError(404, "Appointment not found for this doctor");
+        throw new ApiError(
+          404,
+          "Appointment not found for this doctor"
+        );
       }
 
       if (appointment.status !== "booked") {
@@ -314,7 +353,10 @@ const completeAppointment = asyncHandler(async (req, res) => {
       }).session(session);
 
       if (!queue) {
-        throw new ApiError(404, "Queue entry not found for this appointment");
+        throw new ApiError(
+          404,
+          "Queue entry not found for this appointment"
+        );
       }
 
       if (queue.status !== "serving") {
@@ -343,15 +385,13 @@ const completeAppointment = asyncHandler(async (req, res) => {
     doctorId: String(doctor._id),
   });
 
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        { appointment: completedAppointment },
-        "Appointment and queue marked as completed successfully"
-      )
-    );
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      { appointment: completedAppointment },
+      "Appointment and queue marked as completed successfully"
+    )
+  );
 });
 
 const cancelAppointment = asyncHandler(async (req, res) => {
@@ -374,7 +414,10 @@ const cancelAppointment = asyncHandler(async (req, res) => {
       }).session(session);
 
       if (!appointment) {
-        throw new ApiError(404, "Appointment not found for this patient");
+        throw new ApiError(
+          404,
+          "Appointment not found for this patient"
+        );
       }
 
       // Only booked appointments can be cancelled
@@ -391,20 +434,13 @@ const cancelAppointment = asyncHandler(async (req, res) => {
       }).session(session);
 
       if (!queue) {
-        throw new ApiError(404, "Queue entry not found for this appointment");
+        throw new ApiError(
+          404,
+          "Queue entry not found for this appointment"
+        );
       }
 
-      // Do not cancel a patient who is already being served
-      //   if (queue.status !== "waiting") {
-      //     throw new ApiError(
-      //       400,
-      //       "Only appointments with a waiting queue status can be cancelled"
-      //     );
-      //   }
-
-    //   console.log("Appointment status:", JSON.stringify(appointment.status));
-    //   console.log("Queue status:", JSON.stringify(queue.status));
-
+      // Only appointments with a waiting queue status can be cancelled
       if (queue.status !== "waiting") {
         throw new ApiError(
           400,
@@ -431,15 +467,13 @@ const cancelAppointment = asyncHandler(async (req, res) => {
     doctorId: String(cancelledAppointment.doctor),
   });
 
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        { appointment: cancelledAppointment },
-        "Appointment cancelled successfully"
-      )
-    );
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      { appointment: cancelledAppointment },
+      "Appointment cancelled successfully"
+    )
+  );
 });
 
 export {

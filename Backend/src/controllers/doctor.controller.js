@@ -216,7 +216,7 @@ const updateDoctorProfile = asyncHandler(async (req, res) => {
     );
 });
 
-// Get All Active Doctors + Search
+// Get All Approved and Active Doctors + Search
 const getAllDoctors = asyncHandler(async (req, res) => {
     const { specialization, search } = req.query;
 
@@ -242,8 +242,10 @@ const getAllDoctors = asyncHandler(async (req, res) => {
 
     console.log("Doctor list cache MISS");
 
+    // Patients can see only approved and active doctors
     const filter = {
-        isActive: { $ne: false }
+        approvalStatus: "approved",
+        isActive: true
     };
 
     if (normalizedSpecialization) {
@@ -280,7 +282,7 @@ const getAllDoctors = asyncHandler(async (req, res) => {
     return res.status(200).json(response);
 });
 
-// Get Single Active Doctor + Cache
+// Get Single Approved and Active Doctor + Cache
 const getDoctorById = asyncHandler(async (req, res) => {
     const { doctorId } = req.params;
 
@@ -295,7 +297,12 @@ const getDoctorById = asyncHandler(async (req, res) => {
     if (cachedDoctor !== null) {
         const doctor = cachedDoctor?.data?.doctor;
 
-        if (!doctor || doctor.isActive === false) {
+        // Check approval and active status even for cached data
+        if (
+            !doctor ||
+            doctor.isActive !== true ||
+            doctor.approvalStatus !== "approved"
+        ) {
             throw new ApiError(404, "Doctor not found");
         }
 
@@ -307,7 +314,8 @@ const getDoctorById = asyncHandler(async (req, res) => {
 
     const doctor = await Doctor.findOne({
         _id: doctorId,
-        isActive: { $ne: false }
+        approvalStatus: "approved",
+        isActive: true
     }).populate("user", "name email");
 
     if (!doctor) {

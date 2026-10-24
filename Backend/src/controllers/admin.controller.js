@@ -151,8 +151,57 @@ const updateDoctorStatus = asyncHandler(async (req, res) => {
     );
 });
 
+// PATCH /api/admin/doctors/:id/approval
+const updateDoctorApproval = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { approvalStatus } = req.body ?? {};
+
+    // Validate doctor ID
+    if (!mongoose.isValidObjectId(id)) {
+        throw new ApiError(400, "Invalid doctor ID");
+    }
+
+    // Only allow approval or rejection
+    if (!["approved", "rejected"].includes(approvalStatus)) {
+        throw new ApiError(
+            400,
+            'approvalStatus must be "approved" or "rejected"'
+        );
+    }
+
+    const doctor = await Doctor.findById(id);
+
+    if (!doctor) {
+        throw new ApiError(404, "Doctor not found");
+    }
+
+    // Update application status
+    doctor.approvalStatus = approvalStatus;
+    await doctor.save();
+
+    // Clear cached doctor lists
+    await clearDoctorListCache();
+
+    // Delete this doctor's cached profile
+    const cacheKey = `hmanage:doctors:profile:${doctor._id}`;
+    await deleteCache(cacheKey);
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                doctorId: doctor._id,
+                approvalStatus: doctor.approvalStatus,
+                isActive: doctor.isActive
+            },
+            `Doctor application ${approvalStatus} successfully`
+        )
+    );
+});
+
 export {
     getAllUsers,
     getAllDoctors,
-    updateDoctorStatus
+    updateDoctorStatus,
+    updateDoctorApproval
 };
