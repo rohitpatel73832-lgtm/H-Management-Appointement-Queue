@@ -1,12 +1,12 @@
+
 import { GoogleGenAI } from "@google/genai";
 
-console.log(
-    "Gemini key loaded:",
-    process.env.GEMINI_API_KEY ? "YES" : "NO"
-);
+if (!process.env.GEMINI_API_KEY) {
+  throw new Error("GEMINI_API_KEY is missing from environment variables");
+}
 
 const ai = new GoogleGenAI({
-    apiKey: process.env.GEMINI_API_KEY,
+  apiKey: process.env.GEMINI_API_KEY,
 });
 
 export default ai;

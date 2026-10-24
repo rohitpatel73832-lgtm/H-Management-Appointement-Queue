@@ -13,6 +13,7 @@ import {
   patientAppointmentKey,
   clearAppointmentCaches,
 } from "../services/appointementCache.service.js";
+import Payment from "../models/payment.model.js";
 
 const createAppointment = asyncHandler(async (req, res) => {
   const { doctorId, date, startTime, endTime } = req.body;
@@ -155,21 +156,40 @@ const createAppointment = asyncHandler(async (req, res) => {
     );
 });
 
+
 const getMyAppointments = asyncHandler(async (req, res) => {
   const cacheKey = patientAppointmentKey(String(req.userId));
 
-  // Check Redis
+  // Check Redis cache
   const cachedAppointments = await getAppointmentCache(cacheKey);
 
   if (cachedAppointments !== null) {
     console.log("Patient appointment cache HIT");
 
-    return res.status(200).json(cachedAppointments);
+    // Old cached responses might not contain paymentStatus.
+    // Return the cache only if every appointment has that field.
+    const cachedList = cachedAppointments?.data?.appointments;
+
+    const cacheHasPaymentStatus =
+      Array.isArray(cachedList) &&
+      cachedList.every(
+        (appointment) =>
+          Object.prototype.hasOwnProperty.call(
+            appointment,
+            "paymentStatus"
+          )
+      );
+
+    if (cacheHasPaymentStatus) {
+      return res.status(200).json(cachedAppointments);
+    }
+
+    console.log("Cached appointments missing payment status; refreshing");
   }
 
-  console.log("Patient appointment cache MISS");
+  console.log("Patient appointment cache MISS or STALE");
 
-  // Fetch from MongoDB
+  // Fetch appointments from MongoDB
   const appointments = await Appointment.find({
     patient: req.userId,
   })
@@ -185,17 +205,34 @@ const getMyAppointments = asyncHandler(async (req, res) => {
       startTime: 1,
     });
 
+  // Attach payment status to each appointment
+  const appointmentsWithPayment = await Promise.all(
+    appointments.map(async (appointment) => {
+      const payment = await Payment.findOne({
+        appointment: appointment._id,
+        patient: req.userId,
+      }).select("status amount");
+
+      return {
+        ...appointment.toObject(),
+        paymentStatus: payment?.status || "unpaid",
+        paymentAmount: payment?.amount ?? null,
+      };
+    })
+  );
+
   const response = new ApiResponse(
     200,
-    { appointments },
+    { appointments: appointmentsWithPayment },
     "Appointments fetched successfully"
   );
 
-  // Store response for 60 seconds
+  // Cache the complete response, including payment statuses
   await setAppointmentCache(cacheKey, response);
 
   return res.status(200).json(response);
 });
+
 
 const getDoctorAppointments = asyncHandler(async (req, res) => {
   // Find the doctor profile linked to the logged-in user
@@ -365,8 +402,8 @@ const cancelAppointment = asyncHandler(async (req, res) => {
       //     );
       //   }
 
-      console.log("Appointment status:", JSON.stringify(appointment.status));
-      console.log("Queue status:", JSON.stringify(queue.status));
+    //   console.log("Appointment status:", JSON.stringify(appointment.status));
+    //   console.log("Queue status:", JSON.stringify(queue.status));
 
       if (queue.status !== "waiting") {
         throw new ApiError(
